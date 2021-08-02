@@ -1,4 +1,4 @@
-package com.theneuron.dynamicbidder.model;
+package com.theneuron.pricer.model;
 
 import lombok.AllArgsConstructor;
 
@@ -14,5 +14,5 @@ public final class PriceDirective {
     final UUID lineItemId;
     final String requestId;
     final Instant timestamp;
-
+    final Integer percentage;
 }

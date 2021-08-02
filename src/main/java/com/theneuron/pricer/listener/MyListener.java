@@ -1,10 +1,10 @@
-package com.theneuron.dynamicbidder.listener;
+package com.theneuron.pricer.listener;
 
 import com.amazon.sqs.javamessaging.SQSConnection;
 
 import javax.jms.*;
 
-import static com.theneuron.dynamicbidder.sqs.SqsExample.getSqsConnection;
+import static com.theneuron.pricer.sqs.SqsExample.getSqsConnection;
 
 class MyListener implements MessageListener {
 

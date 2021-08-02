@@ -1,4 +1,4 @@
-package com.theneuron.dynamicbidder.sqs;
+package com.theneuron.pricer.sqs;
 
 import com.amazon.sqs.javamessaging.AmazonSQSMessagingClientWrapper;
 import com.amazon.sqs.javamessaging.ProviderConfiguration;
