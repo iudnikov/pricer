@@ -12,7 +12,7 @@
     <artifactId>dooh-pricer</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>dooh-pricer</name>
-    <description>The Neuron dynamic bidder</description>
+    <description>The Neuron dynamic bidder microservice</description>
     <properties>
         <java.version>1.8</java.version>
     </properties>
@@ -109,9 +109,8 @@
             <version>3.12.0</version>
         </dependency>
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>1.10.19</version>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -144,6 +143,16 @@
     <build>
         <finalName>pricer</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

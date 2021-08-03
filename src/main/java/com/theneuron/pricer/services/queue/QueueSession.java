@@ -13,35 +13,14 @@ import javax.jms.*;
 @Component
 public class QueueSession {
 
-    private final String bidResponseQueueName;
-    private final String winNoticeQueueName;
-    private final String lossNoticeQueueName;
-    private final String currencyRatesQueueName;
     private final SQSConnection sqsConnection;
-    private final BidResponseQueueListener bidResponseQueueListener;
-    private final WinNoticeQueueListener winNoticeQueueListener;
-    private final LossNoticeQueueListener lossNoticeQueueListener;
-    private final CurrencyRatesQueueListener currencyRatesQueueListener;
+    private final JmsSubscriber jmsSubscriber;
 
     public QueueSession(
-            @Value("${queue.bid-response}") String bidResponseQueueName,
-            @Value("${queue.win}") String winNoticeQueueName,
-            @Value("${queue.loss}") String lossNoticeQueueName,
-            @Value("${queue.currency-rate}") String currencyRatesQueueName,
             SQSConnection sqsConnection,
-            BidResponseQueueListener bidResponseQueueListener,
-            WinNoticeQueueListener winNoticeQueueListener,
-            LossNoticeQueueListener lossNoticeQueueListener,
-            CurrencyRatesQueueListener currencyRatesQueueListener) {
-        this.bidResponseQueueName = bidResponseQueueName;
-        this.winNoticeQueueName = winNoticeQueueName;
-        this.lossNoticeQueueName = lossNoticeQueueName;
+            JmsSubscriber jmsSubscriber) {
         this.sqsConnection = sqsConnection;
-        this.bidResponseQueueListener = bidResponseQueueListener;
-        this.winNoticeQueueListener = winNoticeQueueListener;
-        this.lossNoticeQueueListener = lossNoticeQueueListener;
-        this.currencyRatesQueueName = currencyRatesQueueName;
-        this.currencyRatesQueueListener = currencyRatesQueueListener;
+        this.jmsSubscriber = jmsSubscriber;
     }
 
     @PostConstruct
@@ -51,12 +30,7 @@ public class QueueSession {
 
         Session session = sqsConnection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
 
-        subscribe(session, bidResponseQueueName, bidResponseQueueListener);
-        subscribe(session, winNoticeQueueName, winNoticeQueueListener);
-        subscribe(session, lossNoticeQueueName, lossNoticeQueueListener);
-
-        subscribe(session, currencyRatesQueueName, currencyRatesQueueListener);
-
+        jmsSubscriber.sub(session);
         sqsConnection.start();
 
     }
