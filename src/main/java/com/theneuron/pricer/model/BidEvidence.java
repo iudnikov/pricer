@@ -1,21 +1,43 @@
 package com.theneuron.pricer.model;
 
 import lombok.AllArgsConstructor;
-import org.springframework.lang.Nullable;
+import lombok.Builder;
+import lombok.NonNull;
+import lombok.Value;
+import org.javamoney.moneta.Money;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @AllArgsConstructor
-public final class BidEvidence {
-    public final UUID screenId;
-    public final UUID lineItemId;
-    public final String requestId;
-    public final Instant timestamp;
-    public final BigDecimal bidPrice;
-    public final BigDecimal remainingBudget;
-    public final BigDecimal floorPrice;
-    @Nullable
-    public final UUID priceDirective;
+@Builder(toBuilder = true)
+@Value
+public class BidEvidence {
+    public String screenId;
+    public String lineItemId;
+    public String dealId;
+    public String requestId;
+    public Instant timestamp;
+    public BigDecimal minPrice;
+    public BigDecimal maxPrice;
+    public BigDecimal actualPrice;
+    public String currencyCode;
+    @NonNull
+    @Builder.Default
+    public Optional<UUID> directiveId = Optional.empty();
+
+    public Money getPriceIncreaseCapacity() {
+        return Money.of(maxPrice.subtract(actualPrice), currencyCode);
+    }
+
+    public Money getPriceReduceCapacity() {
+        return Money.of(actualPrice.subtract(minPrice), currencyCode);
+    }
+
+    public final Money getActualPriceMoney() {
+        return Money.of(actualPrice, currencyCode);
+    }
+
 }

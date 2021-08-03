@@ -1,0 +1,11 @@
+{
+  "Type": "Notification",
+  "MessageId": "ab08a3b2-17f8-5e0d-8490-fa3f9b3581f8",
+  "TopicArn": "arn:aws:sns:eu-west-1:021858044175:dooh-bid-win",
+  "Message": "[{\"type\":\"win_notice\",\"time\":\"2021-08-11T08:30:05.444Z\",\"content\":\"bid_cost=0.032225635980324&impression_id=1&line_item_id=a94e932c-2148-4964-a67c-0b6e9e894fc9&agency_id=ccdf3904-9443-4967-9cb0-3f66fcf68a44&imp_multiply=3.086746741410345&bid_id=1628670605438&bid_cost_with_markup=0.032225635980324&creative_id=735a836a-6348-4a04-bedc-f0b07d8d3432&advertiser_id=02cd9d86-b0b0-46ef-a9e0-21feb18d6d82&win_price=10.44&instance_id=a8ac3b7f-db63-4830-bc74-1db2476ce3c3&instance_markup=0.0&screen_id=345328466&bid_currency=JOD&advertiser_markup=0.0&request_id=93b9f2c9-a92b-4253-8db7-ee03864bed17&campaign_id=9782146b-fcaf-4a74-a5b5-5c3cea968f20\",\"meta\":{\"bid_cost\":\"0.032225635980324\",\"impression_id\":\"1\",\"line_item_id\":\"a94e932c-2148-4964-a67c-0b6e9e894fc9\",\"agency_id\":\"ccdf3904-9443-4967-9cb0-3f66fcf68a44\",\"imp_multiply\":\"3.086746741410345\",\"bid_id\":\"1628670605438\",\"bid_cost_with_markup\":\"0.032225635980324\",\"creative_id\":\"735a836a-6348-4a04-bedc-f0b07d8d3432\",\"advertiser_id\":\"02cd9d86-b0b0-46ef-a9e0-21feb18d6d82\",\"ssp\":\"fssp\",\"win_price\":\"10.44\",\"instance_id\":\"a8ac3b7f-db63-4830-bc74-1db2476ce3c3\",\"instance_markup\":\"0.0\",\"screen_id\":\"345328466\",\"advertiser_markup\":\"0.0\",\"bid_currency\":\"JOD\",\"request_id\":\"93b9f2c9-a92b-4253-8db7-ee03864bed17\",\"campaign_id\":\"9782146b-fcaf-4a74-a5b5-5c3cea968f20\"}}]",
+  "Timestamp": "2021-08-11T08:30:05.950Z",
+  "SignatureVersion": "1",
+  "Signature": "uIEhL2FgmHqLWH970BxO+qY+vPh453xfZT0v2JnCmkSS+p9aIZVmmn2Oi3cRGOe9P39aMDPA4oVJNGZA2v7QbSt9tV565bV5Fpj3o/laDXS5viyGihIKRglB3dmBsPQ2DHkf5vUgz0Ub8kozGKYtaZRbfbama7TsRNDhP15lXf5orgvwv6cCi94XdxBBFRLwG4DG8mL0pTyag4MhreZ6KFsgG6YN6UWk+WlAjJmGgQ8D6rBrefh6RWKTxq1a20P/BONnUfhW0WitJFYLBeK3WpDgJBWcSPFVBOKaBx8JYQSpPcH12xJwbLHls08niPZlnkVD8J0Yr+8dumu9YQX+FA==",
+  "SigningCertURL": "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-010a507c1833636cd94bdb98bd93083a.pem",
+  "UnsubscribeURL": "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:eu-west-1:021858044175:dooh-bid-win:e711745b-fb19-4c8f-98bf-6acf3e57dedb"
+}
