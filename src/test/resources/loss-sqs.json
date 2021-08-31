@@ -1,0 +1,11 @@
+{
+  "Type": "Notification",
+  "MessageId": "fdf347a5-7d10-5258-93f2-1e28edd9e7c9",
+  "TopicArn": "arn:aws:sns:eu-west-1:021858044175:dooh-bid-response",
+  "Message": "{\"type\":\"loss_notice\",\"time\":1630097321.987000000,\"content\":null,\"meta\":{\"ssp\":null,\"request_id\":\"one\",\"impression_id\":null,\"bid_id\":null,\"screen_id\":null,\"instance_id\":null,\"agency_id\":null,\"advertiser_id\":null,\"campaign_id\":null,\"line_item_id\":null,\"creative_id\":null,\"loss_reason\":null}}",
+  "Timestamp": "2021-08-11T08:47:05.809Z",
+  "SignatureVersion": "1",
+  "Signature": "CpQKgHdvrMQC95AyOKDF050fd7VhfYdsIr8ZO4HlJ6/bVhSDB42a0pIcNWqGLnQcmz87/dpJu3h8NDcMPzRoIYHBCQArN9zLXjXV3G5o3rwjE9dLlLig4PVlBRaRcNnQrFS02+zS2xxi+eS4a54+UOPH/63ISXHAa/9m5Q2zP7CF1bio+MF72iAdu4iMc5zq/azigFEMN7d3jbmOr3taV0R8eJ+QCOOrCW6cxROBe8N+7PksnNrXI4DE5Sj8bqW5RB9wdA1Ov/mR8uWL7+Q30t5JRB7U9CVgp+J4J4KD0y/i2ysn/vtctqNUlNVXhj8nUzKq0P5NPZnpoaxi9cGqsA==",
+  "SigningCertURL": "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-010a507c1833636cd94bdb98bd93083a.pem",
+  "UnsubscribeURL": "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:eu-west-1:021858044175:dooh-bid-response:627b17a4-67cc-41e4-b5fc-c0a09a0d6264"
+}

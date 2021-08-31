@@ -1,0 +1,37 @@
+version: '2.1'
+
+services:
+
+  postgres:
+    image: postgres:9.6-alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: redshift
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - './postgresql:/docker-entrypoint-initdb.d'
+
+  redis:
+    image: redis
+    ports:
+      - '6379:6379'
+
+  localstack:
+    image: localstack/localstack:0.12.4
+    mem_limit: 300M
+    ports:
+      - '4566:4566'
+      - '8888:8888'
+    environment:
+      - 'SERVICES=s3,sns,sqs,secretsmanager'
+      - 'DEBUG=${DEBUG- }'
+      - 'DATA_DIR=${DATA_DIR- }'
+      - 'PORT_WEB_UI=8888'
+      - 'DOCKER_HOST=unix:///var/run/docker.sock'
+      - 'AWS_ACCESS_KEY_ID=dummy'
+      - 'AWS_SECRET_ACCESS_KEY=dummy'
+      - 'AWS_DEFAULT_REGION=us-east-1'
+    volumes:
+      - './localstack:/docker-entrypoint-initaws.d'

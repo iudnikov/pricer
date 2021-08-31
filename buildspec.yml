@@ -1,0 +1,47 @@
+version: 0.2
+
+phases:
+
+  install:
+    runtime-versions:
+      java: corretto8
+      docker: 19
+
+  pre_build:
+    commands:
+      - echo Logging into AWS CodeArtifact...
+      - export CODEARTIFACT_TOKEN=$(aws codeartifact get-authorization-token --region eu-west-1 --domain dooh --domain-owner 021858044175 --query authorizationToken --output text)
+      - echo Logging into Amazon ECR...
+      - $(aws ecr get-login --no-include-email --region $AWS_REGION)
+      - echo Logging into Docker Hub...
+      - aws secretsmanager get-secret-value --region $AWS_REGION --secret-id docker-hub-password | jq -r .SecretString | docker login -u "theneurondev" --password-stdin
+      - export IMAGE_URL="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG"
+      # https://aws.amazon.com/ru/blogs/devops/reducing-docker-image-build-time-on-aws-codebuild-using-an-external-cache/
+      - echo Pulling the cache...
+      - docker pull "$IMAGE_URL" || true
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building JAR file...
+      - cp m2.settings.xml /root/.m2/settings.xml
+      - ./mvnw clean package
+      - echo Building Docker image...
+      - docker build --cache-from "$IMAGE_URL" --tag "$IMAGE_REPO_NAME:$IMAGE_TAG" .
+      - docker tag "$IMAGE_REPO_NAME:$IMAGE_TAG" "$IMAGE_URL"
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push "$IMAGE_URL"
+      - echo Writing image definitions file...
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$IMAGE_URL" > imagedefinitions.json
+
+cache:
+  paths:
+    - '/root/.m2/**/*'
+
+artifacts:
+  files:
+    - 'imagedefinitions.json'

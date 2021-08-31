@@ -1,0 +1,103 @@
+{
+  "type": "bid_response",
+  "time": 1630067233.232000000,
+  "content": {
+    "id": "a1b575dc-9cbb-4c9e-8f96-ebca3a82c111",
+    "seatbid": [
+      {
+        "bid": [
+          {
+            "id": "b46629e9-1259-4f1f-b18f-48bcce1dcc74",
+            "impid": "1",
+            "price": 0.1,
+            "nurl": "/endpoint/SSP/winnotice?bid_cost=5.5E-4&impression_id=1&line_item_id=id2_with_day_schedule_video&agency_id&auction_id=${AUCTION_ID}&imp_multiply=5.5&bid_id=b46629e9-1259-4f1f-b18f-48bcce1dcc74&bid_cost_with_markup=5.5E-4&creative_id=id2_video_creative&advertiser_id&win_price=${AUCTION_PRICE}&instance_id&instance_markup=0.0&screen_id=SCREEN ID&bid_currency=USD&advertiser_markup=0.0&request_id=a1b575dc-9cbb-4c9e-8f96-ebca3a82c111&campaign_id=camp id",
+            "burl": "/endpoint/SSP/billnotice?bid_cost=5.5E-4&impression_id=1&line_item_id=id2_with_day_schedule_video&agency_id&auction_id=${AUCTION_ID}&imp_multiply=5.5&bid_id=b46629e9-1259-4f1f-b18f-48bcce1dcc74&bid_cost_with_markup=5.5E-4&creative_id=id2_video_creative&advertiser_id&win_price=${AUCTION_PRICE}&instance_id&instance_markup=0.0&screen_id=SCREEN ID&bid_currency=USD&advertiser_markup=0.0&request_id=a1b575dc-9cbb-4c9e-8f96-ebca3a82c111&campaign_id=camp id",
+            "lurl": "/endpoint/SSP/lossnotice?bid_cost=5.5E-4&impression_id=1&line_item_id=id2_with_day_schedule_video&agency_id&auction_id=${AUCTION_ID}&imp_multiply=5.5&bid_id=b46629e9-1259-4f1f-b18f-48bcce1dcc74&bid_cost_with_markup=5.5E-4&creative_id=id2_video_creative&loss_reason=${AUCTION_LOSS}&advertiser_id&instance_id&instance_markup=0.0&screen_id=SCREEN ID&bid_currency=USD&advertiser_markup=0.0&request_id=a1b575dc-9cbb-4c9e-8f96-ebca3a82c111&campaign_id=camp id",
+            "adm": null,
+            "adid": null,
+            "adomain": null,
+            "bundle": null,
+            "iurl": null,
+            "cid": null,
+            "crid": null,
+            "tactic": null,
+            "cat": null,
+            "attr": null,
+            "api": 0,
+            "protocol": 0,
+            "qagmediarating": 0,
+            "language": null,
+            "dealid": "DEAL ID",
+            "w": 0,
+            "h": 0,
+            "wratio": 0,
+            "hratio": 0,
+            "exp": 0,
+            "ext": {
+              "vast_url": "/endpoint/SSP/vast?bid_cost=5.5E-4&impression_id=1&line_item_id=id2_with_day_schedule_video&agency_id&imp_multiply=5.5&bid_id=b46629e9-1259-4f1f-b18f-48bcce1dcc74&bid_cost_with_markup=5.5E-4&creative_id=id2_video_creative&advertiser_id&instance_id&instance_markup=0.0&screen_id=SCREEN ID&bid_currency=USD&advertiser_markup=0.0&request_id=a1b575dc-9cbb-4c9e-8f96-ebca3a82c111&campaign_id=camp id"
+            }
+          }
+        ],
+        "seat": "THE_NEURON",
+        "group": 0,
+        "ext": null
+      }
+    ],
+    "bidid": null,
+    "cur": "USD",
+    "customdata": null,
+    "nbr": 0,
+    "ext": null
+  },
+  "meta": {
+    "ssp": "broadsign",
+    "request_id": "a1b575dc-9cbb-4c9e-8f96-ebca3a82c111",
+    "screen_id": "SCREEN ID",
+    "campaign_ids": [
+      "camp id"
+    ],
+    "line_item_ids": [
+      "id2_with_day_schedule_video"
+    ],
+    "creative_ids": [
+      "id2_video_creative"
+    ],
+    "impression_ids": [
+      "1"
+    ],
+    "bid_ids": [
+      "b46629e9-1259-4f1f-b18f-48bcce1dcc74"
+    ],
+    "prices": [
+      0.1
+    ],
+    "deal_ids": [
+      "DEAL ID"
+    ],
+    "currencies": [
+      "USD"
+    ],
+    "deal_bid_floors": [
+      0.1
+    ],
+    "deal_bid_floor_curs": [
+      "USD"
+    ],
+    "imp_bid_floors": [
+      0.1
+    ],
+    "imp_bid_floor_curs": [
+      "USD"
+    ],
+    "imp_multiplies": [
+      5.5
+    ],
+    "line_item_prices": [
+      0.1
+    ],
+    "line_item_currencies": [
+      "USD"
+    ],
+    "directive_ids": []
+  }
+}
