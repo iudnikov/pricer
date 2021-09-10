@@ -5,6 +5,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Api
 @RequestMapping(value = "/health")
+@Slf4j
 public class HealthController {
 
     @ApiOperation(
@@ -26,6 +28,7 @@ public class HealthController {
 
     @GetMapping(value = "")
     public HealthView getHealth() {
+        log.info("checking health");
         return HealthView.builder().state("OK").build();
     }
 
