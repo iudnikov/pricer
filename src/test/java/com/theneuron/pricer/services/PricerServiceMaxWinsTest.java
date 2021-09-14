@@ -103,7 +103,6 @@ class PricerServiceMaxWinsTest {
     public void cancels_existing_guideline_and_publishes_cancellation_directive_when_no_previous_exploitation_directive_exist_and_price_max_reached() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
-        BidEvidenceWriter bidEvidenceWriter = mock(BidEvidenceWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
         CacheReader cacheReader = mock(CacheReader.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
@@ -116,6 +115,7 @@ class PricerServiceMaxWinsTest {
         String requestId = "one";
         String lineItemId = RandomStringUtils.randomAlphanumeric(10);
         String screenId = RandomStringUtils.randomNumeric(10);
+        UUID directiveId = UUID.randomUUID();
 
         BidEvidence bidEvidenceOne = BidEvidence.builder()
                 .requestId(requestId)
@@ -125,13 +125,17 @@ class PricerServiceMaxWinsTest {
                 .actualPrice(BigDecimal.valueOf(10))
                 .maxPrice(BigDecimal.valueOf(10))
                 .currencyCode("USD")
+                .directiveId(Optional.of(directiveId))
                 .build();
 
         Guideline existingGuideline = Guideline.builder()
                 .status(GuidelineStatus.ACTIVE)
                 .guidelineType(GuidelineType.MAXIMISE_WINS)
                 .directive(Directive.builder()
+                        .directiveId(directiveId)
                         .type(DirectiveType.EXPLORATION)
+                        .lineItemId(lineItemId)
+                        .screenId(screenId)
                         .build())
                 .build();
 
@@ -173,12 +177,11 @@ class PricerServiceMaxWinsTest {
     public void cancels_only_latest_exploration_directive_when_price_max_reached() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
-        BidEvidenceWriter bidEvidenceWriter = mock(BidEvidenceWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
         CacheReader cacheReader = mock(CacheReader.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
         GuidelineReader guidelineReader = mock(GuidelineReader.class);
-
+        UUID directiveId = UUID.randomUUID();
 
         PricerService pricerService = new PricerService(
                 AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
@@ -192,12 +195,19 @@ class PricerServiceMaxWinsTest {
                 .guidelineType(GuidelineType.MAXIMISE_WINS)
                 .directive(Directive.builder()
                         .type(DirectiveType.EXPLORATION)
+                        .lineItemId(lineItemId)
+                        .screenId(screenId)
                         .build())
                 .directive(Directive.builder()
                         .type(DirectiveType.EXPLOITATION)
+                        .lineItemId(lineItemId)
+                        .screenId(screenId)
                         .build())
                 .directive(Directive.builder()
                         .type(DirectiveType.EXPLORATION)
+                        .directiveId(directiveId)
+                        .lineItemId(lineItemId)
+                        .screenId(screenId)
                         .build())
                 .build();
 
@@ -209,6 +219,7 @@ class PricerServiceMaxWinsTest {
                 .actualPrice(BigDecimal.valueOf(10))
                 .maxPrice(BigDecimal.valueOf(10))
                 .currencyCode("USD")
+                .directiveId(Optional.of(directiveId))
                 .build();
 
         LossNoticeMessage lossNoticeMessage = LossNoticeMessage.builder()
@@ -250,7 +261,6 @@ class PricerServiceMaxWinsTest {
     public void issues_exploitation_directive_when_win_received_and_exploration_directive_exists() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
-        BidEvidenceWriter bidEvidenceWriter = mock(BidEvidenceWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
         CacheReader cacheReader = mock(CacheReader.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
@@ -268,6 +278,8 @@ class PricerServiceMaxWinsTest {
         Directive exploration = Directive.builder()
                 .directiveId(directiveId)
                 .type(EXPLORATION)
+                .lineItemId(lineItemId)
+                .screenId(screenId)
                 .build();
 
         Guideline existingGuideline = Guideline.builder()
@@ -306,7 +318,7 @@ class PricerServiceMaxWinsTest {
         verify(guidelineWriter).write(guidelineArgumentCaptor.capture());
         Guideline guideline = guidelineArgumentCaptor.getValue();
 
-        assertEquals(GuidelineStatus.ACTIVE, guideline.status);
+        assertEquals(GuidelineStatus.COMPLETE, guideline.status);
         assertEquals(2, guideline.directives.size());
         Directive latestDirective = guideline.directives.get(1);
         assertEquals(EXPLOITATION, latestDirective.getType());
@@ -322,7 +334,6 @@ class PricerServiceMaxWinsTest {
     public void cancel_all_directives_when_received_bid_evidence_with_decreased_max_price_lower_than_latest_actual_price() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
-        BidEvidenceWriter bidEvidenceWriter = mock(BidEvidenceWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
         CacheReader cacheReader = mock(CacheReader.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
@@ -342,10 +353,14 @@ class PricerServiceMaxWinsTest {
                 .directive(Directive.builder()
                         .directiveId(UUID.randomUUID())
                         .type(EXPLORATION)
+                        .screenId(screenId)
+                        .lineItemId(lineItemId)
                         .build())
                 .directive(Directive.builder()
                         .directiveId(UUID.randomUUID())
                         .type(EXPLOITATION)
+                        .screenId(screenId)
+                        .lineItemId(lineItemId)
                         .build())
                 .build();
 
@@ -362,6 +377,7 @@ class PricerServiceMaxWinsTest {
                         .price(4.0) // price is greater than lineItemPrice
                         .lineItemPrice(3.0)
                         .lineItemCurrency("USD")
+                        .directiveId(null)
                         .build())
                 .build();
 
@@ -393,7 +409,6 @@ class PricerServiceMaxWinsTest {
     public void link_bid_evidence_to_existing_guideline_by_screenId_and_lineItemId() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
-        BidEvidenceWriter bidEvidenceWriter = mock(BidEvidenceWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
         CacheReader cacheReader = mock(CacheReader.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
@@ -420,6 +435,7 @@ class PricerServiceMaxWinsTest {
                         .price(1.0)
                         .lineItemPrice(3.0)
                         .lineItemCurrency("USD")
+                        .directiveId(null)
                         .build())
                 .build();
 

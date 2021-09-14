@@ -66,7 +66,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
                 .lineItemId(bidResponseMessage.meta.getLineItemIds().get(i))
                 .screenId(bidResponseMessage.meta.getScreenId())
                 .currencyCode(bidResponseMessage.meta.getLineItemCurrencies().get(i))
-                .directiveId(Optional.ofNullable(bidResponseMessage.meta.getDirectiveIds().get(0)))
+                .directiveId(Optional.ofNullable(bidResponseMessage.meta.getDirectiveIds().get(i)))
                 .build();
     }
 

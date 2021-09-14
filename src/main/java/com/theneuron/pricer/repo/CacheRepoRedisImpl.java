@@ -3,23 +3,24 @@ package com.theneuron.pricer.repo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theneuron.pricer.model.CacheData;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.params.SetParams;
 
 import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-@AllArgsConstructor
 @Repository
 public class CacheRepoRedisImpl implements CacheWriter, CacheReader {
 
     private final Jedis jedis;
     private final ObjectMapper objectMapper;
+
+    public CacheRepoRedisImpl(Jedis jedis, ObjectMapper objectMapper) {
+        this.jedis = jedis;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public void write(CacheData cacheData) throws Exception {
