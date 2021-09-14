@@ -28,7 +28,7 @@ public class HealthController {
 
     @GetMapping(value = "")
     public HealthView getHealth() {
-        log.info("checking health");
+        log.debug("checking health");
         return HealthView.builder().state("OK").build();
     }
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theneuron.pricer.model.messages.CurrencyRatesMessage;
 import org.joda.time.DateTime;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.params.SetParams;
 
 import javax.money.CurrencyUnit;
 import java.math.BigDecimal;
@@ -42,7 +43,8 @@ public class CurrencyRateRepoRedisImpl implements CurrencyRateReader, CurrencyRa
 
     private void write(DateTime dateTime, String pair, BigDecimal rate) {
         String key = getKey(dateTime, pair);
-        jedis.set(key, rate.toString());
+        // currency rates are expected to be received every day, so 2 days ttl should be enough
+        jedis.set(key, rate.toString(), new SetParams().ex(172800));
     }
 
     private String getKey(DateTime dateTime, String pair) {
