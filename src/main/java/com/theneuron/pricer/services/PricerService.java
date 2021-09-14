@@ -14,6 +14,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.javamoney.moneta.Money;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,16 +50,23 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         this.guidelineReader = guidelineReader;
     }
 
-    public static BidEvidence bidEvidence(BidResponseMessage bidResponseMessage, Integer i) {
+    public static BidEvidence bidEvidence(BidResponseMessage bidResponseMessage, Integer i) throws Exception {
+
+        final Double minPrice = Optional.ofNullable(bidResponseMessage.meta.getDealBidFloors())
+                .map(list -> list.get(i))
+                .orElse(Optional.ofNullable(bidResponseMessage.meta.getImpBidFloors())
+                        .map(list -> list.get(i))
+                        .orElseThrow(() -> new Exception("can't define minimum price")));
+
         return BidEvidence.builder()
                 .requestId(bidResponseMessage.meta.getRequestId())
-                .minPrice(BigDecimal.valueOf(bidResponseMessage.meta.getDealBidFloors().get(i)))
+                .minPrice(BigDecimal.valueOf(minPrice))
                 .actualPrice(BigDecimal.valueOf(bidResponseMessage.meta.getPrices().get(i)))
                 .maxPrice(BigDecimal.valueOf(bidResponseMessage.meta.getLineItemPrices().get(i)))
                 .lineItemId(bidResponseMessage.meta.getLineItemIds().get(i))
                 .screenId(bidResponseMessage.meta.getScreenId())
                 .currencyCode(bidResponseMessage.meta.getLineItemCurrencies().get(i))
-                .directiveId(Optional.ofNullable((bidResponseMessage.meta.getDirectiveIds().isEmpty()) ? null : bidResponseMessage.meta.getDirectiveIds().get(0)))
+                .directiveId(Optional.ofNullable(bidResponseMessage.meta.getDirectiveIds().get(0)))
                 .build();
     }
 

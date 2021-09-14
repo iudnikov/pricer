@@ -26,11 +26,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.SnsClient;
 
 import javax.jms.JMSException;
@@ -78,26 +78,6 @@ public class AppConfig {
         return SnsClient.create();
     }
 
-    /*
-    @Bean
-    @Profile("local")
-    public SQSConnection sqsConnectionLocal(
-            @Value("${aws.access-key}") String accessKey,
-            @Value("${aws.secret-key}") String secretKey,
-            @Value("${aws.region}") String region
-    ) throws JMSException {
-
-        SQSConnectionFactory connectionFactory = new SQSConnectionFactory(
-                new ProviderConfiguration(),
-                AmazonSQSClientBuilder.standard()
-                        .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
-                        .withRegion(region)
-                        .build()
-        );
-        return connectionFactory.createConnection();
-    }
-    */
-
     @Bean
     @Profile("local")
     public SQSConnection sqsConnectionLocal(
@@ -115,7 +95,24 @@ public class AppConfig {
     }
 
     @Bean
-    @Profile("!local")
+    @Profile("prod")
+    public SQSConnection sqsConnectionProd(
+            @Value("${aws.access-key}") String accessKey,
+            @Value("${aws.secret-key}") String secretKey,
+            @Value("${aws.region}") String region
+    ) throws JMSException {
+        SQSConnectionFactory connectionFactory = new SQSConnectionFactory(
+                new ProviderConfiguration(),
+                AmazonSQSClientBuilder.standard()
+                        .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
+                        .withRegion(region)
+                        .build()
+        );
+        return connectionFactory.createConnection();
+    }
+
+    @Bean
+    @Profile("!prod")
     public SQSConnection sqsConnection() throws JMSException {
         SQSConnectionFactory connectionFactory = new SQSConnectionFactory(
                 new ProviderConfiguration(),
@@ -151,8 +148,12 @@ public class AppConfig {
     @Bean
     public Jedis jedis(
             @Value("${spring.redis.host}") String host,
-            @Value("${spring.redis.port}") Integer port
+            @Value("${spring.redis.port}") Integer port,
+            @Value("${spring.redis.database}") Integer db
     ) {
-        return new Jedis(host, port);
+        JedisPool pool = new JedisPool(host, port);
+        Jedis jedis = pool.getResource();
+        jedis.select(db);
+        return jedis;
     }
 }
