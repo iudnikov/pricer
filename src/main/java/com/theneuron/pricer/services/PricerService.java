@@ -14,7 +14,6 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.javamoney.moneta.Money;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -133,7 +132,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
             return;
         }
 
-        Money priceIncreaseCapacity = bidEvidence.getPriceIncreaseCapacity();
+        Money priceIncreaseCapacity = bidEvidence.priceIncreaseCapacity();
 
         if (priceIncreaseCapacity.isNegativeOrZero() && isMaximiseWinsGuidelineExistsAndActive(optionalGuideline)) {
             log.info("price has no increase capacity and still loses, guideline should be cancelled");
@@ -169,7 +168,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         }
         else {
 
-            Money priceReduceCapacity = bidEvidence.getPriceReduceCapacity();
+            Money priceReduceCapacity = bidEvidence.priceReduceCapacity();
 
             if (priceReduceCapacity.isNegativeOrZero() && isMinimiseCostsGuidelineExistsAndActive(optionalGuideline)) {
                 log.info("price has no reduce capacity and still wins, guideline should be cancelled");
@@ -177,7 +176,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
                 return;
             }
 
-            Money priceIncreaseStepConverted = getOrExchange(bidEvidence.getActualPriceMoney(), priceChangeStep);
+            Money priceIncreaseStepConverted = getOrExchange(bidEvidence.actualPriceMoney(), priceChangeStep);
 
             log.info("price may be reduced by: {} step: {}", priceReduceCapacity, priceIncreaseStepConverted);
 
@@ -189,7 +188,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
             Directive directiveLor = Directive.builder()
                     .directiveId(uuidSupplier.get())
                     .priceChange(priceReduce.negate().getNumberStripped())
-                    .newPrice(bidEvidence.getActualPriceMoney().subtract(priceReduce).getNumberStripped())
+                    .newPrice(bidEvidence.actualPriceMoney().subtract(priceReduce).getNumberStripped())
                     .currencyCode(bidEvidence.currencyCode)
                     .type(DirectiveType.EXPLORATION)
                     .percentage(minCostsPercentage)
@@ -209,7 +208,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
                 Directive directiveLoi = Directive.builder()
                         .directiveId(uuidSupplier.get())
                         .priceChange(null)
-                        .newPrice(bidEvidence.getActualPriceMoney().getNumberStripped())
+                        .newPrice(bidEvidence.actualPriceMoney().getNumberStripped())
                         .currencyCode(bidEvidence.currencyCode)
                         .type(DirectiveType.EXPLOITATION)
                         .percentage(100)
@@ -305,7 +304,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
     private void increasePrice(BidEvidence bidEvidence, Optional<Guideline> optionalGuideline, Money priceIncreaseCapacity, CacheData cacheData) throws Exception {
 
-        Money priceIncreaseStepConverted = getPriceIncreaseStep(bidEvidence.getActualPriceMoney(), priceChangeStep, moneyExchanger);
+        Money priceIncreaseStepConverted = getPriceIncreaseStep(bidEvidence.actualPriceMoney(), priceChangeStep, moneyExchanger);
 
         log.info("price may be increased by: {}, priceIncreaseStep: {}", priceIncreaseCapacity, priceIncreaseStepConverted);
 
@@ -316,7 +315,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         Directive directive = Directive.builder()
                 .directiveId(uuidSupplier.get())
                 .priceChange(priceIncrease.getNumberStripped())
-                .newPrice(bidEvidence.getActualPriceMoney().add(priceIncrease).getNumberStripped())
+                .newPrice(bidEvidence.actualPriceMoney().add(priceIncrease).getNumberStripped())
                 .currencyCode(bidEvidence.currencyCode)
                 .type(DirectiveType.EXPLORATION)
                 .percentage(maxWinsPercentage)

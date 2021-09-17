@@ -28,15 +28,15 @@ public class BidEvidence {
     @Builder.Default
     public Optional<UUID> directiveId = Optional.empty();
 
-    public Money getPriceIncreaseCapacity() {
+    public final Money priceIncreaseCapacity() {
         return Money.of(maxPrice.subtract(actualPrice), currencyCode);
     }
 
-    public Money getPriceReduceCapacity() {
+    public final Money priceReduceCapacity() {
         return Money.of(actualPrice.subtract(minPrice), currencyCode);
     }
 
-    public final Money getActualPriceMoney() {
+    public final Money actualPriceMoney() {
         return Money.of(actualPrice, currencyCode);
     }
 
