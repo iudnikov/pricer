@@ -35,6 +35,7 @@ public class GenericQueueListener<T> implements MessageListener {
             T model = objectMapper.readValue(payload, typeReference);
             handler.accept(model);
             if (isAcknowledgeEnabled) {
+                log.info("message would be acknowledged");
                 message.acknowledge();
             }
         } catch (Exception e) {
