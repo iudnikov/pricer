@@ -9,6 +9,7 @@ import com.theneuron.pricer.repo.CacheReader;
 import com.theneuron.pricer.repo.CacheWriter;
 import com.theneuron.pricer.repo.GuidelineReader;
 import com.theneuron.pricer.repo.GuidelineWriter;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.javamoney.moneta.Money;
@@ -35,6 +36,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
     private final CacheWriter cacheWriter;
     private final GuidelineReader guidelineReader;
 
+    @Builder
     public PricerService(ObjectMapper objectMapper, CacheReader cacheReader, Supplier<UUID> uuidSupplier, Integer maxWinsPercentage, Integer minCostsPercentage, GuidelineWriter guidelineWriter, Money priceChangeStep, MoneyExchanger moneyExchanger, DirectivePublisher directivePublisher, CacheWriter cacheWriter, GuidelineReader guidelineReader) {
         this.objectMapper = objectMapper;
         this.cacheReader = cacheReader;
@@ -81,8 +83,16 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
         BidEvidence bidEvidence = bidEvidence(bidResponse, 0);
 
-        if (bidEvidence.actualPrice.compareTo(bidEvidence.maxPrice) > 0) {
-            log.debug("received bid evidence with actual price greater than maxPrice and defined directive, guideline would be cancelled");
+        if (bidEvidence.minPrice.doubleValue() == 0d || bidEvidence.maxPrice.doubleValue() == 0d) {
+            log.warn("min or max price equals zero, correct behaviour cannot be guaranteed, skipping");
+            if (bidEvidence.directiveId.isPresent()) {
+                cancelGuidelineAndAllDirectives(bidEvidence);
+            }
+            return;
+        }
+
+        if (bidEvidence.actualPrice.compareTo(bidEvidence.maxPrice) >= 0 && bidEvidence.directiveId.isPresent()) {
+            log.info("received bid evidence with actual price greater or equal than maxPrice and defined directive, guideline would be cancelled");
             cancelGuidelineAndAllDirectives(bidEvidence);
             return;
         }
@@ -246,8 +256,8 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
     private void cancelGuidelineAndAllDirectives(BidEvidence bidEvidence) throws Exception {
         Optional<Guideline> optionalGuideline = guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId);
-        if (isMaximiseWinsGuidelineExistsAndActive(optionalGuideline)) {
-            log.debug("guideline would be cancelled: {}", objectMapper.writeValueAsString(optionalGuideline.get()));
+        if (optionalGuideline.isPresent() && optionalGuideline.get().isActive()) {
+            log.info("guideline would be cancelled: {}", objectMapper.writeValueAsString(optionalGuideline.get()));
             Directive exploitationCancel = Directive.builder()
                     .screenId(bidEvidence.screenId)
                     .lineItemId(bidEvidence.lineItemId)

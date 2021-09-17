@@ -27,9 +27,10 @@ public class Guideline {
         public final Guideline guideline;
     }
 
-    public static Guideline create(ResultEvidence resultEvidence) {
-        return null;
+    public final Boolean isActive() {
+        return status.equals(GuidelineStatus.ACTIVE);
     }
+
 
 }
 
