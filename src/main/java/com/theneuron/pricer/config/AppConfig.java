@@ -36,6 +36,7 @@ import software.amazon.awssdk.services.sns.SnsClient;
 import javax.jms.JMSException;
 import java.net.URI;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Configuration
 public class AppConfig {
@@ -63,13 +64,6 @@ public class AppConfig {
                 .credentialsProvider(awsCredentialsProvider)
                 .region(Region.US_WEST_1)
                 .build();
-    }
-
-    @Bean
-    public CurrencyRateRepoRedisImpl currencyRateRepoRedis(
-            Jedis jedis
-    ) {
-        return new CurrencyRateRepoRedisImpl(jedis);
     }
 
     @Bean
@@ -146,14 +140,16 @@ public class AppConfig {
     }
 
     @Bean
-    public Jedis jedis(
+    public Supplier<Jedis> jedis(
             @Value("${spring.redis.host}") String host,
             @Value("${spring.redis.port}") Integer port,
             @Value("${spring.redis.database}") Integer db
     ) {
-        JedisPool pool = new JedisPool(host, port);
-        Jedis jedis = pool.getResource();
-        jedis.select(db);
-        return jedis;
+        return () -> {
+            JedisPool pool = new JedisPool(host, port);
+            Jedis jedis = pool.getResource();
+            jedis.select(db);
+            return jedis;
+        };
     }
 }

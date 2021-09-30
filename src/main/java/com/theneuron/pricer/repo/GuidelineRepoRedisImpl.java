@@ -9,11 +9,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.ScanParams;
 import redis.clients.jedis.ScanResult;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -21,23 +23,26 @@ import java.util.stream.Collectors;
 public class GuidelineRepoRedisImpl implements GuidelineReader, GuidelineWriter {
 
     private final ObjectMapper objectMapper;
-    private final Jedis jedis;
+    private final Supplier<Jedis> jedis;
 
-    public GuidelineRepoRedisImpl(ObjectMapper objectMapper, Jedis jedis) {
+    public GuidelineRepoRedisImpl(
+            ObjectMapper objectMapper,
+            Supplier<Jedis> jedis
+    ) {
         this.objectMapper = objectMapper;
         this.jedis = jedis;
     }
 
     @Override
     public List<Guideline> readAll(@Nullable Function<Guideline, Boolean> filter) throws Exception {
-        ScanResult<String> result = jedis.scan("0", new ScanParams().count(1000000).match(Guideline.class.getName() + "*"));
+        ScanResult<String> result = jedis.get().scan("0", new ScanParams().count(1000000).match(Guideline.class.getName() + "*"));
         if (!result.getCursor().equals("0")) {
             throw new Exception("can't read from jedis");
         }
         if (result.getResult().isEmpty()) {
             return ImmutableList.of();
         }
-        List<String> values = jedis.mget(result.getResult().toArray(new String[result.getResult().size()]));
+        List<String> values = jedis.get().mget(result.getResult().toArray(new String[result.getResult().size()]));
         List<Guideline> list = new ArrayList<>();
         values.forEach(data -> {
             try {
@@ -52,7 +57,7 @@ public class GuidelineRepoRedisImpl implements GuidelineReader, GuidelineWriter 
     @Override
     public Optional<Guideline> read(String lineItemId, String screenId) {
         String key = getKey(lineItemId, screenId);
-        return Optional.ofNullable(jedis.get(key)).map(data -> {
+        return Optional.ofNullable(jedis.get().get(key)).map(data -> {
             try {
                 return objectMapper.readValue(data, Guideline.class);
             } catch (JsonProcessingException e) {
@@ -70,7 +75,7 @@ public class GuidelineRepoRedisImpl implements GuidelineReader, GuidelineWriter 
         Directive directive = guideline.directives.get(0);
         String key = getKey(directive.lineItemId, directive.screenId);
         String value = objectMapper.writeValueAsString(guideline);
-        jedis.set(key, value);
+        jedis.get().set(key, value);
     }
 
     private static String getKey(String lineItemId, String screenId) {

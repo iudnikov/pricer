@@ -9,15 +9,16 @@ import redis.clients.jedis.Jedis;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 @Slf4j
 @Repository
 public class CacheRepoRedisImpl implements CacheWriter, CacheReader {
 
-    private final Jedis jedis;
+    private final Supplier<Jedis> jedis;
     private final ObjectMapper objectMapper;
 
-    public CacheRepoRedisImpl(Jedis jedis, ObjectMapper objectMapper) {
+    public CacheRepoRedisImpl(Supplier<Jedis> jedis, ObjectMapper objectMapper) {
         this.jedis = jedis;
         this.objectMapper = objectMapper;
     }
@@ -26,12 +27,12 @@ public class CacheRepoRedisImpl implements CacheWriter, CacheReader {
     public void write(CacheData cacheData) throws Exception {
         String key = String.join("#", CacheData.class.getName(), Objects.requireNonNull(cacheData.getRequestId()));
         String value = objectMapper.writeValueAsString(cacheData);
-        jedis.set(key, value);
+        jedis.get().set(key, value);
     }
 
     @Override
     public Optional<CacheData> read(String requestId) {
-        return Optional.ofNullable(jedis.get(String.join("#", CacheData.class.getName(), requestId)))
+        return Optional.ofNullable(jedis.get().get(String.join("#", CacheData.class.getName(), requestId)))
                 .map(data -> {
                     try {
                         return objectMapper.readValue(data, CacheData.class);
