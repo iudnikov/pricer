@@ -29,13 +29,13 @@ public class GenericQueueListener<T> implements MessageListener {
     public final void onMessage(Message message) {
         try {
             final String text = ((TextMessage) message).getText();
-            log.info("handling message: {} ", text);
+            log.debug("handling message: {} ", text);
             final SQSMessageWrapper messageWrapper = objectMapper.readValue(text, SQSMessageWrapper.class);
             final String payload = messageWrapper.Message;
             T model = objectMapper.readValue(payload, typeReference);
             handler.accept(model);
             if (isAcknowledgeEnabled) {
-                log.info("message would be acknowledged");
+                log.debug("message would be acknowledged");
                 message.acknowledge();
             }
         } catch (Exception e) {

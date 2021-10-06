@@ -71,7 +71,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
     public void onBidResponseMessage(BidResponseMessage bidResponse) throws Exception {
 
-        log.info("handling bid response: {}", objectMapper.writeValueAsString(bidResponse));
+        log.debug("handling bid response: {}", objectMapper.writeValueAsString(bidResponse));
 
         // TODO implement support for multiple bids inside single bid response
         if (bidResponse.meta.getBidIds().size() != 1) {
@@ -82,7 +82,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         BidEvidence bidEvidence = bidEvidence(bidResponse, 0);
 
         if (bidEvidence.actualPrice.compareTo(bidEvidence.maxPrice) > 0) {
-            log.info("received bid evidence with actual price greater than maxPrice and defined directive, guideline would be cancelled");
+            log.debug("received bid evidence with actual price greater than maxPrice and defined directive, guideline would be cancelled");
             cancelGuidelineAndAllDirectives(bidEvidence);
             return;
         }
@@ -90,7 +90,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         Optional<CacheData> optionalCacheData = cacheReader.read(bidEvidence.requestId);
 
         if (optionalCacheData.isPresent() && optionalCacheData.get().getBidEvidence().equals(bidEvidence)) {
-            log.info("message duplicate, ignoring");
+            log.debug("message duplicate, ignoring");
             return;
         }
         else if (optionalCacheData.isPresent()) {
@@ -105,15 +105,15 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
     public void onLossNoticeMessage(LossNoticeMessage lossNoticeMessage) throws Exception {
 
-        log.info("handling loss notice: {}", objectMapper.writeValueAsString(lossNoticeMessage));
+        log.debug("handling loss notice: {}", objectMapper.writeValueAsString(lossNoticeMessage));
 
         String requestId = lossNoticeMessage.getMeta().getRequestId();
 
-        log.info("requestId: {}", requestId);
+        log.debug("requestId: {}", requestId);
 
         Optional<CacheData> optionalCacheData = cacheReader.read(requestId);
         if (!optionalCacheData.isPresent()) {
-            log.info("cache data not found for requestId: {}", requestId);
+            log.debug("cache data not found for requestId: {}", requestId);
             return;
         }
         CacheData cacheData = optionalCacheData.get();
@@ -124,7 +124,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
             optionalGuideline = guidelineReader.read(lossNoticeMessage.getMeta().getLineItemId(), lossNoticeMessage.getMeta().getScreenId());
         }
         else {
-            log.info("guideline read from cache");
+            log.debug("guideline read from cache");
         }
 
         if (optionalGuideline.isPresent() && !bidEvidence.directiveId.isPresent()) {
@@ -135,7 +135,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         Money priceIncreaseCapacity = bidEvidence.priceIncreaseCapacity();
 
         if (priceIncreaseCapacity.isNegativeOrZero() && isMaximiseWinsGuidelineExistsAndActive(optionalGuideline)) {
-            log.info("price has no increase capacity and still loses, guideline should be cancelled");
+            log.debug("price has no increase capacity and still loses, guideline should be cancelled");
             cancelGuideline(bidEvidence, optionalGuideline.get());
             return;
         }
@@ -145,12 +145,12 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
     }
 
     public void onWinNoticeMessage(WinNoticeMessage winNoticeMessage) throws Exception {
-        log.info("handling win notice: {}", objectMapper.writeValueAsString(winNoticeMessage));
+        log.debug("handling win notice: {}", objectMapper.writeValueAsString(winNoticeMessage));
 
         String requestId = winNoticeMessage.getMeta().getRequestId();
         Optional<CacheData> optionalCacheData = cacheReader.read(requestId);
         if (!optionalCacheData.isPresent()) {
-            log.info("cache data not found for requestId: {}", requestId);
+            log.debug("cache data not found for requestId: {}", requestId);
             return;
         }
 
@@ -163,7 +163,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         }
 
         if (isMaximiseWinsGuidelineExistsAndActive(optionalGuideline)) {
-            log.info("ACTIVE MAXIMIZE_WINS guideline found");
+            log.debug("ACTIVE MAXIMIZE_WINS guideline found");
             confirmMaximizeWinsGuideline(bidEvidence, optionalGuideline.get());
         }
         else {
@@ -171,18 +171,18 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
             Money priceReduceCapacity = bidEvidence.priceReduceCapacity();
 
             if (priceReduceCapacity.isNegativeOrZero() && isMinimiseCostsGuidelineExistsAndActive(optionalGuideline)) {
-                log.info("price has no reduce capacity and still wins, guideline should be cancelled");
+                log.debug("price has no reduce capacity and still wins, guideline should be cancelled");
                 cancelGuideline(bidEvidence, optionalGuideline.get());
                 return;
             }
 
             Money priceIncreaseStepConverted = getOrExchange(bidEvidence.actualPriceMoney(), priceChangeStep);
 
-            log.info("price may be reduced by: {} step: {}", priceReduceCapacity, priceIncreaseStepConverted);
+            log.debug("price may be reduced by: {} step: {}", priceReduceCapacity, priceIncreaseStepConverted);
 
             Money priceReduce = ObjectUtils.min(priceIncreaseStepConverted, priceReduceCapacity);
 
-            log.info("price would be reduced by: {}", priceReduce);
+            log.debug("price would be reduced by: {}", priceReduce);
 
             // create factory method
             Directive directiveLor = Directive.builder()
@@ -247,7 +247,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
     private void cancelGuidelineAndAllDirectives(BidEvidence bidEvidence) throws Exception {
         Optional<Guideline> optionalGuideline = guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId);
         if (isMaximiseWinsGuidelineExistsAndActive(optionalGuideline)) {
-            log.info("guideline would be cancelled: {}", objectMapper.writeValueAsString(optionalGuideline.get()));
+            log.debug("guideline would be cancelled: {}", objectMapper.writeValueAsString(optionalGuideline.get()));
             Directive exploitationCancel = Directive.builder()
                     .screenId(bidEvidence.screenId)
                     .lineItemId(bidEvidence.lineItemId)
@@ -306,11 +306,11 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
         Money priceIncreaseStepConverted = getPriceIncreaseStep(bidEvidence.actualPriceMoney(), priceChangeStep, moneyExchanger);
 
-        log.info("price may be increased by: {}, priceIncreaseStep: {}", priceIncreaseCapacity, priceIncreaseStepConverted);
+        log.debug("price may be increased by: {}, priceIncreaseStep: {}", priceIncreaseCapacity, priceIncreaseStepConverted);
 
         Money priceIncrease = ObjectUtils.min(priceIncreaseStepConverted, priceIncreaseCapacity);
 
-        log.info("price would be increased by: {}", priceIncrease);
+        log.debug("price would be increased by: {}", priceIncrease);
 
         Directive directive = Directive.builder()
                 .directiveId(uuidSupplier.get())

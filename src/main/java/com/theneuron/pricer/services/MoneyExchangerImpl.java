@@ -31,7 +31,7 @@ public class MoneyExchangerImpl implements MoneyExchanger {
         }
         BigDecimal exchanged = rate.get().multiply(from.getNumber().numberValue(BigDecimal.class));
         BigDecimal rounded = exchanged.setScale(2, RoundingMode.HALF_DOWN);
-        log.info("exchange rate: {} exchanged: {} rounded: {}", rate.get(), exchanged, rounded);
+        log.debug("exchange rate: {} exchanged: {} rounded: {}", rate.get(), exchanged, rounded);
         return Money.of(rounded, to);
     }
 }

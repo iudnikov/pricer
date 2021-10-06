@@ -23,7 +23,7 @@ public class TestQueueListener implements MessageListener {
         try {
             final String text = ((TextMessage) message).getText();
 
-            log.info("handling message: {} ", text);
+            log.debug("handling message: {} ", text);
         } catch (Exception e) {
             log.error(String.format("can't handle message %s", message), e);
         }
