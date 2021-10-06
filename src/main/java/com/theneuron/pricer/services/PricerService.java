@@ -76,7 +76,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         log.debug("handling bid response: {}", objectMapper.writeValueAsString(bidResponse));
 
         // TODO implement support for multiple bids inside single bid response
-        if (bidResponse.meta.getBidIds().size() != 1) {
+        if (bidResponse.meta.getBidIds() == null || bidResponse.meta.getBidIds().size() != 1) {
             log.warn("bid responses with bids count != 1 are currently not supported");
             return;
         }
