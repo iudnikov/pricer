@@ -30,7 +30,7 @@ public class DirectivePublisherSNSImpl implements DirectivePublisher {
     @Override
     public void publish(Directive directive) throws Exception {
         String message = objectMapper.writeValueAsString(directive);
-        log.info("publishing message {} to topic {}", message, topicArn);
+        log.debug("publishing message {} to topic {}", message, topicArn);
         sns.publish(PublishRequest.builder().topicArn(topicArn).message(message).build());
     }
 }

@@ -26,7 +26,7 @@ public class QueueSession {
     @PostConstruct
     public void postConstruct() throws Exception {
 
-        log.info("starting SQS session");
+        log.debug("starting SQS session");
 
         Session session = sqsConnection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
 
@@ -43,7 +43,7 @@ public class QueueSession {
 
     @PreDestroy
     public void preDestroy() throws JMSException {
-        log.info("SQS connection would be closed");
+        log.debug("SQS connection would be closed");
         sqsConnection.close();
     }
 
