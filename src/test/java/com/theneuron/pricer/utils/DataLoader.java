@@ -3,7 +3,7 @@ package com.theneuron.pricer.utils;
 import com.amazon.sqs.javamessaging.message.SQSTextMessage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theneuron.pricer.config.AppConfig;
+import com.theneuron.pricer.config.AppConfigLocal;
 import com.theneuron.pricer.model.messages.BidResponseMessage;
 import com.theneuron.pricer.model.messages.WinNoticeMessage;
 import com.theneuron.pricer.model.messages.LossNoticeMessage;
@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,7 +25,7 @@ public class DataLoader {
         try {
             File file = new File(filename);
             String actual = Files.lines(file.toPath()).collect(Collectors.joining());
-            ObjectMapper objectMapper = AppConfig.objectMapper();
+            ObjectMapper objectMapper = AppConfigLocal.objectMapper();
             final SQSMessageWrapper messageWrapper = objectMapper.readValue(actual, SQSMessageWrapper.class);
             String message = messageWrapper.Message;
             if (message.contains("bid_response")) {
@@ -42,7 +43,7 @@ public class DataLoader {
         try {
             File file = new File(filename);
             String message = Files.lines(file.toPath()).collect(Collectors.joining());
-            ObjectMapper objectMapper = AppConfig.objectMapper();
+            ObjectMapper objectMapper = AppConfigLocal.objectMapper();
             if (message.contains("bid_response")) {
                 return objectMapper.readValue(message, typeReference);
             }
@@ -56,7 +57,7 @@ public class DataLoader {
     public static SQSTextMessage createSQSTextMessage(String payload) throws Exception {
         File file = new File("src/test/resources/sqs-message-template.json");
         String text = Files.lines(file.toPath()).collect(Collectors.joining());
-        ObjectMapper objectMapper = AppConfig.objectMapper();
+        ObjectMapper objectMapper = AppConfigLocal.objectMapper();
         String replaced = text.replace("PAYLOAD", payload);
         return new SQSTextMessage(replaced);
     }
@@ -104,6 +105,11 @@ public class DataLoader {
     @Nullable
     public static List<LossNoticeMessage> readLossNotices() {
         return readAndUnmarshal("src/test/resources/win-notice-sqs.json", new TypeReference<List<LossNoticeMessage>>() {});
+    }
+
+    public static List<String> readMessages() throws Exception {
+        File file = new File("src/test/resources/case_one.txt");
+        return Files.lines(file.toPath()).collect(Collectors.toList());
     }
 
 }

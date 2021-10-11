@@ -2,7 +2,7 @@ package com.theneuron.pricer.services;
 
 import com.amazon.sqs.javamessaging.message.SQSTextMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theneuron.pricer.config.AppConfig;
+import com.theneuron.pricer.config.AppConfigLocal;
 import com.theneuron.pricer.services.queue.WinNoticeQueueListener;
 import com.theneuron.pricer.utils.DataLoader;
 
@@ -12,7 +12,7 @@ import static org.mockito.Mockito.*;
 
 class WinNoticeQueueListenerTest {
 
-    final ObjectMapper objectMapper = AppConfig.objectMapper();
+    final ObjectMapper objectMapper = AppConfigLocal.objectMapper();
 
     @Test
     public void testWinNotice() throws Exception {

@@ -2,7 +2,7 @@ package com.theneuron.pricer.utils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theneuron.pricer.config.AppConfig;
+import com.theneuron.pricer.config.AppConfigLocal;
 import com.theneuron.pricer.model.messages.BidResponseMessage;
 import com.theneuron.pricer.model.messages.SQSMessageWrapper;
 import org.junit.jupiter.api.Test;
@@ -37,7 +37,7 @@ class ObjectMapperFactoryTest {
 
         String actual = Files.lines(file.toPath()).collect(Collectors.joining());
 
-        ObjectMapper objectMapper = AppConfig.objectMapper();
+        ObjectMapper objectMapper = AppConfigLocal.objectMapper();
 
         final SQSMessageWrapper messageWrapper = objectMapper.readValue(actual, SQSMessageWrapper.class);
         String message = messageWrapper.Message;

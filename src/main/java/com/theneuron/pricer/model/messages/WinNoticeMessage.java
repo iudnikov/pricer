@@ -82,4 +82,8 @@ public class WinNoticeMessage {
         Optional<UUID> directiveId;
     }
 
+    public static WinNoticeMessage.WinNoticeMessageBuilder of(Instant at, WinNoticeMessage.Meta meta) {
+        return builder().type("win_notice").time(at).meta(meta);
+    }
+
 }

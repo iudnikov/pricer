@@ -29,7 +29,6 @@ public class GenericQueueListener<T> implements MessageListener {
     public final void onMessage(Message message) {
         try {
             final String text = ((TextMessage) message).getText();
-            log.debug("handling message: {} ", text);
             final SQSMessageWrapper messageWrapper = objectMapper.readValue(text, SQSMessageWrapper.class);
             final String payload = messageWrapper.Message;
             T model = objectMapper.readValue(payload, typeReference);

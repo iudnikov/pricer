@@ -96,4 +96,8 @@ public class BidResponseMessage {
 
     }
 
+    public static BidResponseMessageBuilder of(Instant at, Meta meta) {
+        return builder().type("bid_response").time(at).meta(meta);
+    }
+
 }

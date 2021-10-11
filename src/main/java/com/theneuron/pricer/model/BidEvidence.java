@@ -15,14 +15,24 @@ import java.util.UUID;
 @Builder(toBuilder = true)
 @Value
 public class BidEvidence {
+    @NonNull
+    public String sspId;
+    @NonNull
     public String screenId;
+    @NonNull
     public String lineItemId;
     public String dealId;
+    @NonNull
     public String requestId;
+    @NonNull
     public Instant timestamp;
+    @NonNull
     public BigDecimal minPrice;
+    @NonNull
     public BigDecimal maxPrice;
+    @NonNull
     public BigDecimal actualPrice;
+    @NonNull
     public String currencyCode;
     @NonNull
     @Builder.Default

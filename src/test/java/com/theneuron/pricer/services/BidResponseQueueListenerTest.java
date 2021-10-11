@@ -1,7 +1,7 @@
 package com.theneuron.pricer.services;
 
 import com.amazon.sqs.javamessaging.message.SQSTextMessage;
-import com.theneuron.pricer.config.AppConfig;
+import com.theneuron.pricer.config.AppConfigLocal;
 import com.theneuron.pricer.services.queue.BidResponseQueueListener;
 import com.theneuron.pricer.utils.DataLoader;
 
@@ -12,7 +12,7 @@ import static org.mockito.Mockito.*;
 class BidResponseQueueListenerTest {
 
     BidResponseHandler handler = mock(BidResponseHandler.class);
-    BidResponseQueueListener listener = new BidResponseQueueListener(AppConfig.objectMapper(), handler, false);
+    BidResponseQueueListener listener = new BidResponseQueueListener(AppConfigLocal.objectMapper(), handler, false);
 
     @Test
     void onMessage() throws Exception {

@@ -12,7 +12,4 @@ import org.springframework.lang.Nullable;
 public class CacheData {
     String requestId;
     BidEvidence bidEvidence;
-    @Nullable
-    @With
-    Guideline guideline;
 }

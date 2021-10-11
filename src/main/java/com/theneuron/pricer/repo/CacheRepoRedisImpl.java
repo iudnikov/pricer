@@ -15,24 +15,42 @@ import java.util.function.Supplier;
 @Repository
 public class CacheRepoRedisImpl implements CacheWriter, CacheReader {
 
-    private final Supplier<Jedis> jedis;
+    private final Supplier<Jedis> jedisSupplier;
     private final ObjectMapper objectMapper;
 
-    public CacheRepoRedisImpl(Supplier<Jedis> jedis, ObjectMapper objectMapper) {
-        this.jedis = jedis;
+    public CacheRepoRedisImpl(
+            Supplier<Jedis> jedisSupplier,
+            ObjectMapper objectMapper
+    ) {
+        this.jedisSupplier = jedisSupplier;
         this.objectMapper = objectMapper;
     }
 
     @Override
     public void write(CacheData cacheData) throws Exception {
-        String key = String.join("#", CacheData.class.getName(), Objects.requireNonNull(cacheData.getRequestId()));
+        String key = getKey(Objects.requireNonNull(cacheData.getRequestId()));
         String value = objectMapper.writeValueAsString(cacheData);
-        jedis.get().set(key, value);
+        jedisSupplier.get().set(key, value);
+    }
+
+    private String getKey(String s) {
+        return String.join("#", CacheData.class.getName(), s);
+    }
+
+    @Override
+    public void delete(CacheData cacheData) throws Exception {
+        String key = getKey(Objects.requireNonNull(cacheData.getRequestId()));
+        jedisSupplier.get().del(key);
+    }
+
+    @Override
+    public void delete(String... key) throws Exception {
+        jedisSupplier.get().del(key);
     }
 
     @Override
     public Optional<CacheData> read(String requestId) {
-        return Optional.ofNullable(jedis.get().get(String.join("#", CacheData.class.getName(), requestId)))
+        return Optional.ofNullable(jedisSupplier.get().get(getKey(requestId)))
                 .map(data -> {
                     try {
                         return objectMapper.readValue(data, CacheData.class);

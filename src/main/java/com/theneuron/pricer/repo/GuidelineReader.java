@@ -8,6 +8,6 @@ import java.util.UUID;
 import java.util.function.Function;
 
 public interface GuidelineReader {
-    Optional<Guideline> read(String lineItemId, String screenId) throws Exception;
+    Optional<Guideline> read(String lineItemId, String screenId, String sspId) throws Exception;
     List<Guideline> readAll(Function<Guideline, Boolean> filter) throws Exception;
 }

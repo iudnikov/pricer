@@ -1,6 +1,7 @@
 package com.theneuron.pricer.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.theneuron.pricer.model.*;
 import com.theneuron.pricer.model.messages.BidResponseMessage;
 import com.theneuron.pricer.model.messages.LossNoticeMessage;
@@ -15,10 +16,14 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.javamoney.moneta.Money;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class PricerService implements BidResponseHandler, WinNoticeHandler, LossNoticeHandler {
@@ -36,8 +41,10 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
     private final CacheWriter cacheWriter;
     private final GuidelineReader guidelineReader;
 
+    private final Supplier<Instant> nowSupplier;
+
     @Builder
-    public PricerService(ObjectMapper objectMapper, CacheReader cacheReader, Supplier<UUID> uuidSupplier, Integer maxWinsPercentage, Integer minCostsPercentage, GuidelineWriter guidelineWriter, Money priceChangeStep, MoneyExchanger moneyExchanger, DirectivePublisher directivePublisher, CacheWriter cacheWriter, GuidelineReader guidelineReader) {
+    public PricerService(ObjectMapper objectMapper, CacheReader cacheReader, Supplier<UUID> uuidSupplier, Integer maxWinsPercentage, Integer minCostsPercentage, GuidelineWriter guidelineWriter, Money priceChangeStep, MoneyExchanger moneyExchanger, DirectivePublisher directivePublisher, CacheWriter cacheWriter, GuidelineReader guidelineReader, Supplier<Instant> nowSupplier) {
         this.objectMapper = objectMapper;
         this.cacheReader = cacheReader;
         this.uuidSupplier = uuidSupplier;
@@ -49,11 +56,13 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         this.directivePublisher = directivePublisher;
         this.cacheWriter = cacheWriter;
         this.guidelineReader = guidelineReader;
+        this.nowSupplier = nowSupplier;
     }
 
     public static BidEvidence bidEvidence(BidResponseMessage bidResponseMessage, Integer i) throws Exception {
 
         final Double minPrice = Optional.ofNullable(bidResponseMessage.meta.getDealBidFloors())
+                .filter(list -> !list.isEmpty())
                 .map(list -> list.get(i))
                 .orElse(Optional.ofNullable(bidResponseMessage.meta.getImpBidFloors())
                         .map(list -> list.get(i))
@@ -67,7 +76,11 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
                 .lineItemId(bidResponseMessage.meta.getLineItemIds().get(i))
                 .screenId(bidResponseMessage.meta.getScreenId())
                 .currencyCode(bidResponseMessage.meta.getLineItemCurrencies().get(i))
-                .directiveId(Optional.ofNullable(bidResponseMessage.meta.getDirectiveIds().get(i)))
+                .directiveId(Optional.ofNullable(bidResponseMessage.meta.getDirectiveIds())
+                        .filter(list -> !list.isEmpty())
+                        .map(list -> list.get(i)))
+                .timestamp(bidResponseMessage.time)
+                .sspId(bidResponseMessage.meta.getSsp())
                 .build();
     }
 
@@ -75,9 +88,10 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
         log.debug("handling bid response: {}", objectMapper.writeValueAsString(bidResponse));
 
-        // TODO implement support for multiple bids inside single bid response
-        if (bidResponse.meta.getBidIds() == null || bidResponse.meta.getBidIds().size() != 1) {
-            log.warn("bid responses with bids count != 1 are currently not supported");
+        if (bidResponse.meta.getSsp().trim().toUpperCase().equals("FSSP")
+                || bidResponse.meta.getSsp().trim().toUpperCase().equals("VIOOH")
+                || bidResponse.meta.getSsp().trim().toUpperCase().equals("VISTAR")) {
+            log.debug("dynamic bidding for FSSP, VIOOH and Vistar is disabled yet");
             return;
         }
 
@@ -86,14 +100,14 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         if (bidEvidence.minPrice.doubleValue() == 0d || bidEvidence.maxPrice.doubleValue() == 0d) {
             log.warn("min or max price equals zero, correct behaviour cannot be guaranteed, skipping");
             if (bidEvidence.directiveId.isPresent()) {
-                cancelGuidelineAndAllDirectives(bidEvidence);
+                cancelGuidelineAndAllDirectives(bidEvidence, guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId, bidEvidence.sspId));
             }
             return;
         }
 
-        if (bidEvidence.actualPrice.compareTo(bidEvidence.maxPrice) >= 0 && bidEvidence.directiveId.isPresent()) {
-            log.info("received bid evidence with actual price greater or equal than maxPrice and defined directive, guideline would be cancelled");
-            cancelGuidelineAndAllDirectives(bidEvidence);
+        if (bidEvidence.actualPrice.compareTo(bidEvidence.maxPrice) > 0 && bidEvidence.directiveId.isPresent()) {
+            log.debug("received bid evidence with actual price greater or equal than maxPrice and defined directive, guideline would be cancelled");
+            cancelGuidelineAndAllDirectives(bidEvidence, guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId, bidEvidence.sspId));
             return;
         }
 
@@ -102,8 +116,7 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         if (optionalCacheData.isPresent() && optionalCacheData.get().getBidEvidence().equals(bidEvidence)) {
             log.debug("message duplicate, ignoring");
             return;
-        }
-        else if (optionalCacheData.isPresent()) {
+        } else if (optionalCacheData.isPresent()) {
             String message = "existing cache message differs from received one with the same request id";
             log.error(message + " existing: {} received: {}", objectMapper.writeValueAsString(optionalCacheData.get()), objectMapper.writeValueAsString(bidEvidence));
             throw new Exception(message);
@@ -111,6 +124,11 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
         writeCache(bidEvidence);
 
+    }
+
+    public boolean isLossReason(LossNoticeMessage lossNoticeMessage) {
+        String lossReason = lossNoticeMessage.getMeta().getLossReason();
+        return lossReason == null || Lists.newArrayList("102", "101", "another bid won").stream().anyMatch(str -> lossNoticeMessage.getMeta().getLossReason().trim().equals(str));
     }
 
     public void onLossNoticeMessage(LossNoticeMessage lossNoticeMessage) throws Exception {
@@ -122,42 +140,58 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         log.debug("requestId: {}", requestId);
 
         Optional<CacheData> optionalCacheData = cacheReader.read(requestId);
+
         if (!optionalCacheData.isPresent()) {
-            log.debug("cache data not found for requestId: {}", requestId);
+            log.debug("CacheData not found for requestId: {}", requestId);
             return;
         }
         CacheData cacheData = optionalCacheData.get();
         BidEvidence bidEvidence = Objects.requireNonNull(cacheData.getBidEvidence());
-        Optional<Guideline> optionalGuideline = Optional.ofNullable(cacheData.getGuideline());
 
+        Optional<Guideline> optionalGuideline = guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId, bidEvidence.sspId);
+
+        // TODO REMOVE THIS?!
         if (!optionalGuideline.isPresent()) {
-            optionalGuideline = guidelineReader.read(lossNoticeMessage.getMeta().getLineItemId(), lossNoticeMessage.getMeta().getScreenId());
-        }
-        else {
-            log.debug("guideline read from cache");
+            optionalGuideline = guidelineReader.read(lossNoticeMessage.getMeta().getLineItemId(), lossNoticeMessage.getMeta().getScreenId(), lossNoticeMessage.getMeta().getSsp());
         }
 
-        if (optionalGuideline.isPresent() && !bidEvidence.directiveId.isPresent()) {
-            log.warn("guideline exists, bid evidence without directiveId would be ignored");
-            return;
-        }
+        if (shouldBeSkipped(cacheData, bidEvidence, optionalGuideline)) return;
 
         Money priceIncreaseCapacity = bidEvidence.priceIncreaseCapacity();
 
-        if (priceIncreaseCapacity.isNegativeOrZero() && isMaximiseWinsGuidelineExistsAndActive(optionalGuideline)) {
-            log.debug("price has no increase capacity and still loses, guideline should be cancelled");
+        boolean isLossReason = isLossReason(lossNoticeMessage);
+
+        if (optionalGuideline.filter(g -> (g.isActive() | g.isCompleted()) && g.isMaxWins() && priceIncreaseCapacity.isPositive()).isPresent() && isLossReason) {
+            log.debug("existing ACTIVE MAXIMISE_WINS guideline: {}, price may be increased by {}", optionalGuideline.get(), priceIncreaseCapacity);
+            increasePrice(bidEvidence, priceIncreaseCapacity, cacheData, optionalGuideline);
+        } else if (optionalGuideline.filter(g -> g.isActiveMaxWins() && priceIncreaseCapacity.isNegativeOrZero()).isPresent()) {
+            log.debug("existing ACTIVE MAXIMISE_WINS guideline found and would be cancelled because of no price increase capacity");
             cancelGuideline(bidEvidence, optionalGuideline.get());
-            return;
+        } else if (optionalGuideline.filter(g -> g.isActiveMinCosts()).isPresent()) {
+            log.debug("existing ACTIVE MINIMISE_COSTS guideline found");
+            cancelGuideline(bidEvidence, optionalGuideline.get());
+        } else if (optionalGuideline.filter(g -> !g.isActive()).isPresent() && isLossReason) {
+            log.debug("existing non ACTIVE guideline found, would be overwritten");
+            increasePrice(bidEvidence, priceIncreaseCapacity, cacheData, Optional.empty());
+        } else if (priceIncreaseCapacity.isPositive() && isLossReason) {
+            log.debug("no guideline found, trying to maximise wins by increasing price");
+            increasePrice(bidEvidence, priceIncreaseCapacity, cacheData, Optional.empty());
+        } else if (!isLossReason) {
+            log.debug("not a proper loss reason received: {}", lossNoticeMessage.getMeta().getLossReason());
+        } else {
+            log.debug("nothing to do on loss notice message");
         }
 
-        increasePrice(bidEvidence, optionalGuideline, priceIncreaseCapacity, cacheData);
+        cacheWriter.delete(cacheData);
 
     }
 
     public void onWinNoticeMessage(WinNoticeMessage winNoticeMessage) throws Exception {
+
         log.debug("handling win notice: {}", objectMapper.writeValueAsString(winNoticeMessage));
 
         String requestId = winNoticeMessage.getMeta().getRequestId();
+
         Optional<CacheData> optionalCacheData = cacheReader.read(requestId);
         if (!optionalCacheData.isPresent()) {
             log.debug("cache data not found for requestId: {}", requestId);
@@ -166,76 +200,115 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
         CacheData cacheData = optionalCacheData.get();
         BidEvidence bidEvidence = Objects.requireNonNull(cacheData.getBidEvidence());
-        Optional<Guideline> optionalGuideline = Optional.ofNullable(cacheData.getGuideline());
 
-        if (!optionalGuideline.isPresent()) {
-            optionalGuideline = guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId);
-        }
+        Optional<Guideline> optionalGuideline = guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId, bidEvidence.sspId);
+
+        if (shouldBeSkipped(cacheData, bidEvidence, optionalGuideline)) return;
 
         if (isMaximiseWinsGuidelineExistsAndActive(optionalGuideline)) {
             log.debug("ACTIVE MAXIMIZE_WINS guideline found");
-            confirmMaximizeWinsGuideline(bidEvidence, optionalGuideline.get());
-        }
-        else {
+            completeGuideline(bidEvidence, optionalGuideline.get());
+            cacheWriter.delete(cacheData);
+        } else if (isRecentlyCompletedMaxWinsGuideline(optionalGuideline)) {
+            log.debug("MAXIMISE_WINS recently completed, would not try reduce price");
+        } else if (isMinimiseCostsGuidelineExistsAndActive(optionalGuideline)) {
 
-            Money priceReduceCapacity = bidEvidence.priceReduceCapacity();
+            Guideline guideline = optionalGuideline.get();
 
-            if (priceReduceCapacity.isNegativeOrZero() && isMinimiseCostsGuidelineExistsAndActive(optionalGuideline)) {
-                log.debug("price has no reduce capacity and still wins, guideline should be cancelled");
-                cancelGuideline(bidEvidence, optionalGuideline.get());
-                return;
+            Optional<Directive> previous = guideline.getDirectiveById(bidEvidence.directiveId.get());
+            if (!previous.isPresent()) {
+                String msg = String.format("no previous directive found by id: %s}", bidEvidence.directiveId.get());
+                log.error(msg);
+                throw new Exception(msg);
             }
-
-            Money priceIncreaseStepConverted = getOrExchange(bidEvidence.actualPriceMoney(), priceChangeStep);
-
-            log.debug("price may be reduced by: {} step: {}", priceReduceCapacity, priceIncreaseStepConverted);
-
-            Money priceReduce = ObjectUtils.min(priceIncreaseStepConverted, priceReduceCapacity);
-
-            log.debug("price would be reduced by: {}", priceReduce);
-
-            // create factory method
-            Directive directiveLor = Directive.builder()
+            if (!previous.filter(d -> d.type.equals(DirectiveType.EXPLORATION)).isPresent()) {
+                String msg = "previous directive should be exploration";
+                log.error(msg);
+                throw new Exception("previous directive should be exploration");
+            }
+            Directive loi = Directive.builder()
                     .directiveId(uuidSupplier.get())
-                    .priceChange(priceReduce.negate().getNumberStripped())
-                    .newPrice(bidEvidence.actualPriceMoney().subtract(priceReduce).getNumberStripped())
+                    .priceChange(null)
+                    .newPrice(bidEvidence.actualPriceMoney().getNumberStripped())
                     .currencyCode(bidEvidence.currencyCode)
-                    .type(DirectiveType.EXPLORATION)
-                    .percentage(minCostsPercentage)
+                    .type(DirectiveType.EXPLOITATION)
+                    .percentage(100)
                     .screenId(bidEvidence.screenId)
+                    .sspId(bidEvidence.sspId)
                     .lineItemId(bidEvidence.lineItemId)
                     .requestId(bidEvidence.requestId)
+                    .timestamp(nowSupplier.get())
                     .build();
-
-            Guideline guideline = optionalGuideline.orElse(
-                    Guideline.builder()
-                            .status(GuidelineStatus.ACTIVE)
-                            .guidelineType(GuidelineType.MINIMISE_COSTS)
-                            .directive(directiveLor)
-                            .build());
-
-            if (bidEvidence.directiveId.isPresent()) {
-                Directive directiveLoi = Directive.builder()
-                        .directiveId(uuidSupplier.get())
-                        .priceChange(null)
-                        .newPrice(bidEvidence.actualPriceMoney().getNumberStripped())
-                        .currencyCode(bidEvidence.currencyCode)
-                        .type(DirectiveType.EXPLOITATION)
-                        .percentage(100)
-                        .screenId(bidEvidence.screenId)
-                        .lineItemId(bidEvidence.lineItemId)
-                        .requestId(bidEvidence.requestId)
-                        .build();
-                guideline = guideline.toBuilder().directive(directiveLoi).build();
-                directivePublisher.publish(directiveLoi);
-            }
-
-            cacheWriter.write(cacheData.withGuideline(guideline));
-            guidelineWriter.write(guideline);
-            directivePublisher.publish(directiveLor);
-
+            guideline = guideline.toBuilder().directive(loi).build();
+            log.debug("exploitation directive would be published: {}", loi);
+            directivePublisher.publish(loi);
+            createGuideline(cacheData, bidEvidence, guideline);
+        } else if (bidEvidence.priceReduceCapacity().isPositive()) {
+            reducePrice(bidEvidence, bidEvidence.priceReduceCapacity(), cacheData, Optional.empty());
+        } else {
+            log.debug("nothing to do");
         }
 
+        cacheWriter.delete(cacheData);
+
+    }
+
+    private boolean shouldBeSkipped(CacheData cacheData, BidEvidence bidEvidence, Optional<Guideline> optionalGuideline) throws Exception {
+        if (optionalGuideline.isPresent() && !optionalGuideline.get().isCancelled() && (!bidEvidence.directiveId.isPresent() || !optionalGuideline.get().getDirectiveById(bidEvidence.directiveId.get()).isPresent())) {
+            log.warn("guideline exists, but without directiveId would be ignored: {}", bidEvidence);
+            cacheWriter.delete(cacheData);
+            return true;
+        }
+        return false;
+    }
+
+
+    private void createGuideline(CacheData cacheData, BidEvidence bidEvidence, Guideline guideline) throws Exception {
+
+        Money priceReduceCapacity = bidEvidence.priceReduceCapacity();
+
+        if (priceReduceCapacity.isNegativeOrZero()) {
+            log.debug("price has no reduce capacity and still wins, guideline should be completed");
+            completeGuideline(bidEvidence, guideline);
+            return;
+        }
+
+        Money priceIncreaseStepConverted = getOrExchange(bidEvidence.actualPriceMoney(), priceChangeStep);
+
+        log.debug("price may be reduced by: {} step: {}", priceReduceCapacity, priceIncreaseStepConverted);
+
+        Money priceReduce = ObjectUtils.min(priceIncreaseStepConverted, priceReduceCapacity);
+
+        log.debug("price would be reduced by: {}", priceReduce);
+
+        // create factory method
+        Directive lor = Directive.builder()
+                .directiveId(uuidSupplier.get())
+                .priceChange(priceReduce.negate().getNumberStripped())
+                .newPrice(bidEvidence.actualPriceMoney().subtract(priceReduce).getNumberStripped())
+                .currencyCode(bidEvidence.currencyCode)
+                .type(DirectiveType.EXPLORATION)
+                .percentage(minCostsPercentage)
+                .screenId(bidEvidence.screenId)
+                .sspId(bidEvidence.sspId)
+                .lineItemId(bidEvidence.lineItemId)
+                .requestId(bidEvidence.requestId)
+                .timestamp(Instant.now())
+                .build();
+
+        guideline = guideline.toBuilder().directive(lor).build();
+
+        log.debug("\nguideline would be written: {}\nexploration directive would be published: {}\n", guideline, lor);
+
+        cacheWriter.delete(cacheData);
+        guidelineWriter.write(guideline);
+        directivePublisher.publish(lor);
+    }
+
+    private boolean isRecentlyCompletedMaxWinsGuideline(Optional<Guideline> optionalGuideline) {
+        return optionalGuideline
+                .filter(g -> g.guidelineType.equals(GuidelineType.MAXIMISE_WINS) && g.status.equals(GuidelineStatus.COMPLETE) && g.isAfter(nowSupplier.get().minus(1, ChronoUnit.HOURS)))
+                .isPresent();
     }
 
     private Money getOrExchange(Money fromPrice, Money step) throws Exception {
@@ -246,65 +319,87 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
     }
 
     private void writeCache(BidEvidence bidEvidence) throws Exception {
-        CacheData.CacheDataBuilder cacheDataBuilder = CacheData.builder()
+        CacheData cacheData = CacheData.builder()
                 .bidEvidence(bidEvidence)
-                .requestId(bidEvidence.getRequestId());
-        Optional<Guideline> optionalGuideline = guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId);
-        optionalGuideline.ifPresent(cacheDataBuilder::guideline);
-        cacheWriter.write(cacheDataBuilder.build());
+                .requestId(bidEvidence.getRequestId())
+                .build();
+        log.debug("CacheData would be written: {}", cacheData);
+        cacheWriter.write(cacheData);
     }
 
-    private void cancelGuidelineAndAllDirectives(BidEvidence bidEvidence) throws Exception {
-        Optional<Guideline> optionalGuideline = guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId);
+    private void cancelGuidelineAndAllDirectives(BidEvidence bidEvidence, Optional<Guideline> optionalGuideline) throws Exception {
         if (optionalGuideline.isPresent() && optionalGuideline.get().isActive()) {
-            log.info("guideline would be cancelled: {}", objectMapper.writeValueAsString(optionalGuideline.get()));
+            log.debug("guideline would be cancelled: {}", optionalGuideline.get());
             Directive exploitationCancel = Directive.builder()
                     .screenId(bidEvidence.screenId)
+                    .sspId(bidEvidence.sspId)
                     .lineItemId(bidEvidence.lineItemId)
                     .type(DirectiveType.EXPLOITATION_CANCEL)
+                    .directiveId(uuidSupplier.get())
+                    .requestId(bidEvidence.requestId)
+                    .timestamp(nowSupplier.get())
                     .build();
             Directive explorationCancel = exploitationCancel.toBuilder()
                     .type(DirectiveType.EXPLORATION_CANCEL)
+                    .directiveId(uuidSupplier.get())
                     .build();
-            guidelineWriter.write(optionalGuideline.get().toBuilder()
+
+            Guideline guideline = optionalGuideline.get().toBuilder()
                     .status(GuidelineStatus.CANCELLED)
                     .directive(exploitationCancel)
                     .directive(explorationCancel)
-                    .build());
+                    .build();
+
+            deleteCache(guideline);
+            guidelineWriter.write(guideline);
             directivePublisher.publish(exploitationCancel);
             directivePublisher.publish(explorationCancel);
+        } else {
+            log.warn("what if optionalGuideline is empty?");
         }
     }
 
-    private void confirmMaximizeWinsGuideline(BidEvidence bidEvidence, Guideline guideline) throws Exception {
+    private void completeGuideline(BidEvidence bidEvidence, Guideline guideline) throws Exception {
+
+        log.debug("guideline would be completed: {}", guideline);
 
         if (guideline.directives.isEmpty()) {
             throw new Exception("guideline cannot have zero directives");
         }
 
-        Directive latestDirective = guideline.directives.get(guideline.directives.size() - 1);
+        Directive latestDirective = guideline.getLatestDirective();
+        Guideline.GuidelineBuilder builder = guideline.toBuilder();
 
         if (latestDirective.type.equals(DirectiveType.EXPLORATION)) {
-            Directive exploitation = Directive.builder()
+            Directive exploitation = latestDirective.toBuilder()
                     .directiveId(uuidSupplier.get())
+                    .requestId(bidEvidence.requestId)
+                    .timestamp(nowSupplier.get())
                     .type(DirectiveType.EXPLOITATION)
-                    .lineItemId(bidEvidence.lineItemId)
-                    .screenId(bidEvidence.screenId)
                     .percentage(100)
                     .build();
 
-            guidelineWriter.write(guideline.toBuilder()
-                    .directive(exploitation)
-                    .status(GuidelineStatus.COMPLETE)
-                    .build());
+            builder.directive(exploitation);
 
             directivePublisher.publish(exploitation);
         } else {
-            log.error("latest directive type is {} but EXPLORATION required", latestDirective.type);
+            log.error("latest directive type = {}", latestDirective.type);
         }
+        deleteCache(guideline);
+        guidelineWriter.write(builder
+                .status(GuidelineStatus.COMPLETE)
+                .build());
     }
 
-    public static Money getPriceIncreaseStep(Money fromPrice, Money step, MoneyExchanger moneyExchanger) throws Exception {
+    private void deleteCache(Guideline guideline) throws Exception {
+        List<String> requestIds = guideline.directives.stream()
+                .map(Directive::getRequestId)
+                .collect(Collectors.toList());
+        log.debug("CacheData would be deleted for requestIds: {}", requestIds);
+        cacheWriter.delete(requestIds.toArray(new String[0]));
+    }
+
+    public static Money getPriceChangeStep(Money fromPrice, Money step, MoneyExchanger moneyExchanger) throws Exception {
         // TODO implement s = 10*2^(n/2)
         if (fromPrice.getCurrency().equals(step.getCurrency())) {
             return step;
@@ -312,59 +407,141 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         return moneyExchanger.exchange(step, fromPrice.getCurrency());
     }
 
-    private void increasePrice(BidEvidence bidEvidence, Optional<Guideline> optionalGuideline, Money priceIncreaseCapacity, CacheData cacheData) throws Exception {
+    private void increasePrice(BidEvidence bidEvidence, Money priceIncreaseCapacity, CacheData cacheData, Optional<Guideline> optionalGuideline) throws Exception {
 
-        Money priceIncreaseStepConverted = getPriceIncreaseStep(bidEvidence.actualPriceMoney(), priceChangeStep, moneyExchanger);
+        Money priceIncreaseStepConverted = getPriceChangeStep(bidEvidence.actualPriceMoney(), priceChangeStep, moneyExchanger);
 
         log.debug("price may be increased by: {}, priceIncreaseStep: {}", priceIncreaseCapacity, priceIncreaseStepConverted);
 
         Money priceIncrease = ObjectUtils.min(priceIncreaseStepConverted, priceIncreaseCapacity);
 
-        log.debug("price would be increased by: {}", priceIncrease);
+        log.debug("price would be increase by: {}", priceIncrease);
 
-        Directive directive = Directive.builder()
+        Money increasedPrice = bidEvidence.actualPriceMoney().add(priceIncrease);
+
+        if (optionalGuideline.isPresent()) {
+            Guideline existingGuideline = optionalGuideline.get();
+            Directive latestDirective = existingGuideline.getLatestDirective();
+            if (latestDirective.isExploration() && latestDirective.newPriceMoney().isGreaterThanOrEqualTo(increasedPrice)) {
+                log.debug("price increase to: {} would not have effect, current exploration amount: {}", increasedPrice, latestDirective.newPriceMoney());
+                return;
+            }
+        }
+
+        Directive lor = Directive.builder()
                 .directiveId(uuidSupplier.get())
                 .priceChange(priceIncrease.getNumberStripped())
-                .newPrice(bidEvidence.actualPriceMoney().add(priceIncrease).getNumberStripped())
+                .newPrice(increasedPrice.getNumberStripped())
                 .currencyCode(bidEvidence.currencyCode)
                 .type(DirectiveType.EXPLORATION)
                 .percentage(maxWinsPercentage)
                 .screenId(bidEvidence.screenId)
+                .sspId(bidEvidence.sspId)
                 .lineItemId(bidEvidence.lineItemId)
                 .requestId(bidEvidence.requestId)
+                .timestamp(nowSupplier.get())
                 .build();
 
-        Guideline guideline = optionalGuideline.orElse(
-                Guideline.builder()
+        Guideline guideline = optionalGuideline
+                .map(g -> g.toBuilder()
+                        .directive(lor)
+                        .status(GuidelineStatus.ACTIVE)
+                        .build())
+                .orElse(Guideline.builder()
                         .status(GuidelineStatus.ACTIVE)
                         .guidelineType(GuidelineType.MAXIMISE_WINS)
-                        .directive(directive)
+                        .directive(lor)
                         .build());
 
-        cacheWriter.write(cacheData.withGuideline(guideline));
         guidelineWriter.write(guideline);
-        directivePublisher.publish(directive);
+        directivePublisher.publish(lor);
 
     }
 
-    private void cancelGuideline(BidEvidence bidEvidence, Guideline guideline) throws Exception {
-        Directive directive = Directive.builder()
-                .screenId(bidEvidence.getScreenId())
-                .lineItemId(bidEvidence.getLineItemId())
-                .type(DirectiveType.EXPLORATION_CANCEL)
-                .build();
+    private void reducePrice(BidEvidence bidEvidence, Money capacity, CacheData cacheData, Optional<Guideline> optionalGuideline) throws Exception {
 
-        Guideline.GuidelineBuilder guidelineBuilder = guideline.toBuilder()
-                .directive(directive);
+        Money step = getPriceChangeStep(bidEvidence.actualPriceMoney(), priceChangeStep, moneyExchanger);
 
-        if (guideline.directives.stream().noneMatch(d -> d.type.equals(DirectiveType.EXPLOITATION))) {
-            guidelineBuilder.status(GuidelineStatus.CANCELLED);
+        log.debug("price may be reduced by: {}, priceIncreaseStep: {}", capacity, step);
+
+        Money priceIncrease = ObjectUtils.min(step.abs(), capacity.abs());
+
+        log.debug("price would be increase by: {}", priceIncrease);
+
+        final Money reducedPrice = bidEvidence.actualPriceMoney().subtract(priceIncrease);
+
+        if (optionalGuideline.isPresent()) {
+            Guideline existingGuideline = optionalGuideline.get();
+            Directive latestDirective = existingGuideline.getLatestDirective();
+            if (latestDirective.isExploration() && latestDirective.newPriceMoney().isLessThanOrEqualTo(reducedPrice)) {
+                log.debug("price reduce to: {} would not have effect, current exploration amount: {}", reducedPrice, latestDirective.newPriceMoney());
+                return;
+            }
         }
 
-        guideline = guidelineBuilder.build();
+        Directive lor = Directive.builder()
+                .directiveId(uuidSupplier.get())
+                .priceChange(priceIncrease.negate().getNumberStripped())
+                .newPrice(reducedPrice.getNumberStripped())
+                .currencyCode(bidEvidence.currencyCode)
+                .type(DirectiveType.EXPLORATION)
+                .percentage(minCostsPercentage)
+                .screenId(bidEvidence.screenId)
+                .sspId(bidEvidence.sspId)
+                .lineItemId(bidEvidence.lineItemId)
+                .requestId(bidEvidence.requestId)
+                .timestamp(nowSupplier.get())
+                .build();
 
+        Guideline guideline = optionalGuideline
+                .map(g -> g.toBuilder().directive(lor).build())
+                .orElse(Guideline.builder()
+                        .status(GuidelineStatus.ACTIVE)
+                        .guidelineType(GuidelineType.MINIMISE_COSTS)
+                        .directive(lor)
+                        .build());
+
+        cacheWriter.delete(cacheData);
         guidelineWriter.write(guideline);
-        directivePublisher.publish(directive);
+        directivePublisher.publish(lor);
+
+    }
+
+    private void cancelGuideline(BidEvidence bidEvidence, final Guideline guideline) throws Exception {
+
+        log.debug("guideline would be cancelled: {}", guideline);
+
+        Directive latestDirective = guideline.getLatestDirective();
+
+        Guideline.GuidelineBuilder builder = guideline.toBuilder();
+
+        Optional<Directive> optionalDirective = guideline.getDirectiveById(bidEvidence.directiveId.get());
+
+        if (optionalDirective.filter(d -> d.isExploitation() && guideline.isActiveMinCosts()).isPresent() || !guideline.has(DirectiveType.EXPLOITATION)) {
+            builder.status(GuidelineStatus.CANCELLED);
+        }
+
+        if (latestDirective.type.equals(DirectiveType.EXPLORATION)) {
+            Directive directive = Directive.builder()
+                    .screenId(bidEvidence.getScreenId())
+                    .sspId(bidEvidence.sspId)
+                    .lineItemId(bidEvidence.getLineItemId())
+                    .type(DirectiveType.EXPLORATION_CANCEL)
+                    .directiveId(uuidSupplier.get())
+                    .timestamp(nowSupplier.get())
+                    .requestId(bidEvidence.requestId)
+                    .build();
+            builder.directive(directive);
+            directivePublisher.publish(directive);
+        }
+
+        final Guideline newGuideline = builder.build();
+
+        deleteCache(guideline);
+
+        log.debug("\nwriting guideline: {}", guideline);
+        guidelineWriter.write(newGuideline);
+
     }
 
     private static Boolean isMaximiseWinsGuidelineExistsAndActive(Optional<Guideline> optionalGuideline) {

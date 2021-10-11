@@ -2,7 +2,7 @@ package com.theneuron.pricer.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theneuron.pricer.config.AppConfig;
+import com.theneuron.pricer.config.AppConfigLocal;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 
 public class BidEvidenceSerializationTest {
 
-    ObjectMapper objectMapper = AppConfig.objectMapper();
+    ObjectMapper objectMapper = AppConfigLocal.objectMapper();
 
     @Test
     public void should_not_deserialize_methods() throws JsonProcessingException {

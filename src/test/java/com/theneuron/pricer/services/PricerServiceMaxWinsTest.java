@@ -1,7 +1,7 @@
 package com.theneuron.pricer.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.theneuron.pricer.config.AppConfig;
+import com.theneuron.pricer.config.AppConfigLocal;
 import com.theneuron.pricer.model.*;
 import com.theneuron.pricer.model.messages.BidResponseMessage;
 import com.theneuron.pricer.model.messages.LossNoticeMessage;
@@ -20,13 +20,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static com.theneuron.pricer.model.DirectiveType.*;
-import static com.theneuron.pricer.services.PricerService.getPriceIncreaseStep;
+import static com.theneuron.pricer.services.PricerService.getPriceChangeStep;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
-
 
 class PricerServiceMaxWinsTest {
 
@@ -34,25 +34,40 @@ class PricerServiceMaxWinsTest {
     final Integer maxWinsPercentage = 25;
     final Integer minCostsPercentage = 10;
     final MoneyExchanger moneyExchanger = mock(MoneyExchanger.class);
-    final ObjectMapper objectMapper = AppConfig.objectMapper();
+    final ObjectMapper objectMapper = AppConfigLocal.objectMapper();
+    final Money priceChangeStep = Money.of(0.1, "USD");
+    final Supplier<UUID> uuidSupplier = UUID::randomUUID;
+    final Supplier<Instant> nowSupplier = Instant::now;
 
     @Test
-    public void creates_new_guideline_publishes_exploration_directive() throws Exception {
+    public void should_create_new_guideline_and_publishes_exploration_directive() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
         GuidelineReader guidelineReader = mock(GuidelineReader.class);
-        Money priceIncreaseStep = Money.of(0.1, "USD");
-
-
         CacheReader cacheReader = mock(CacheReader.class);
-        PricerService pricerService = new PricerService(
-                AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
+
+        PricerService pricerService = PricerService.builder()
+                .objectMapper(objectMapper)
+                .cacheReader(cacheReader)
+                .cacheWriter(cacheWriter)
+                .uuidSupplier(uuidSupplier)
+                .nowSupplier(nowSupplier)
+                .maxWinsPercentage(maxWinsPercentage)
+                .minCostsPercentage(minCostsPercentage)
+                .priceChangeStep(priceChangeStep)
+                .moneyExchanger(moneyExchanger)
+                .directivePublisher(directivePublisher)
+                .guidelineReader(guidelineReader)
+                .guidelineWriter(guidelineWriter)
+                .build();
 
         String requestId = "one";
         String lineItemId = RandomStringUtils.randomAlphanumeric(10);
         String screenId = RandomStringUtils.randomNumeric(10);
+        String sspId = RandomStringUtils.randomNumeric(10);
+
         BidEvidence bidEvidence = BidEvidence.builder()
                 .requestId(requestId)
                 .lineItemId(lineItemId)
@@ -61,6 +76,8 @@ class PricerServiceMaxWinsTest {
                 .actualPrice(BigDecimal.valueOf(5))
                 .maxPrice(BigDecimal.valueOf(10))
                 .currencyCode("USD")
+                .timestamp(Instant.now())
+                .sspId(sspId)
                 .build();
 
         CacheData cacheData = CacheData.builder()
@@ -101,24 +118,35 @@ class PricerServiceMaxWinsTest {
     }
 
     @Test
-    public void cancels_existing_guideline_and_publishes_cancellation_directive_when_no_previous_exploitation_directive_exist_and_price_max_reached() throws Exception {
+    public void should_not_create_guideline_when_no_price_increase_capacity() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
-        CacheReader cacheReader = mock(CacheReader.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
         GuidelineReader guidelineReader = mock(GuidelineReader.class);
+        CacheReader cacheReader = mock(CacheReader.class);
 
-
-        PricerService pricerService = new PricerService(
-                AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
+        PricerService pricerService = PricerService.builder()
+                .objectMapper(objectMapper)
+                .cacheReader(cacheReader)
+                .cacheWriter(cacheWriter)
+                .uuidSupplier(uuidSupplier)
+                .nowSupplier(nowSupplier)
+                .maxWinsPercentage(maxWinsPercentage)
+                .minCostsPercentage(minCostsPercentage)
+                .priceChangeStep(priceChangeStep)
+                .moneyExchanger(moneyExchanger)
+                .directivePublisher(directivePublisher)
+                .guidelineReader(guidelineReader)
+                .guidelineWriter(guidelineWriter)
+                .build();
 
         String requestId = "one";
         String lineItemId = RandomStringUtils.randomAlphanumeric(10);
         String screenId = RandomStringUtils.randomNumeric(10);
-        UUID directiveId = UUID.randomUUID();
+        String sspId = RandomStringUtils.randomNumeric(10);
 
-        BidEvidence bidEvidenceOne = BidEvidence.builder()
+        BidEvidence bidEvidence = BidEvidence.builder()
                 .requestId(requestId)
                 .lineItemId(lineItemId)
                 .screenId(screenId)
@@ -126,23 +154,12 @@ class PricerServiceMaxWinsTest {
                 .actualPrice(BigDecimal.valueOf(10))
                 .maxPrice(BigDecimal.valueOf(10))
                 .currencyCode("USD")
-                .directiveId(Optional.of(directiveId))
-                .build();
-
-        Guideline existingGuideline = Guideline.builder()
-                .status(GuidelineStatus.ACTIVE)
-                .guidelineType(GuidelineType.MAXIMISE_WINS)
-                .directive(Directive.builder()
-                        .directiveId(directiveId)
-                        .type(DirectiveType.EXPLORATION)
-                        .lineItemId(lineItemId)
-                        .screenId(screenId)
-                        .build())
+                .timestamp(Instant.now())
+                .sspId(sspId)
                 .build();
 
         CacheData cacheData = CacheData.builder()
-                .bidEvidence(bidEvidenceOne)
-                .guideline(existingGuideline)
+                .bidEvidence(bidEvidence)
                 .build();
 
         LossNoticeMessage lossNoticeMessage = LossNoticeMessage.builder()
@@ -154,6 +171,88 @@ class PricerServiceMaxWinsTest {
                 .build();
 
         when(cacheReader.read(requestId)).thenReturn(Optional.of(cacheData));
+
+        // when
+        pricerService.onLossNoticeMessage(lossNoticeMessage);
+
+        verify(cacheWriter).delete(cacheData);
+
+        verifyNoInteractions(guidelineWriter);
+        verifyNoInteractions(directivePublisher);
+    }
+
+    @Test
+    public void should_cancel_existing_guideline_and_publishes_cancellation_directive_when_no_previous_exploitation_directive_exist_and_price_max_reached() throws Exception {
+
+        GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
+        DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
+        CacheReader cacheReader = mock(CacheReader.class);
+        CacheWriter cacheWriter = mock(CacheWriter.class);
+        GuidelineReader guidelineReader = mock(GuidelineReader.class);
+
+        PricerService pricerService = PricerService.builder()
+                .objectMapper(objectMapper)
+                .cacheReader(cacheReader)
+                .cacheWriter(cacheWriter)
+                .uuidSupplier(uuidSupplier)
+                .nowSupplier(nowSupplier)
+                .maxWinsPercentage(maxWinsPercentage)
+                .minCostsPercentage(minCostsPercentage)
+                .priceChangeStep(priceChangeStep)
+                .moneyExchanger(moneyExchanger)
+                .directivePublisher(directivePublisher)
+                .guidelineReader(guidelineReader)
+                .guidelineWriter(guidelineWriter)
+                .build();
+
+        String requestId = "one";
+        String lineItemId = RandomStringUtils.randomAlphanumeric(10);
+        String screenId = RandomStringUtils.randomNumeric(10);
+        String sspId = RandomStringUtils.randomNumeric(10);
+        UUID directiveId = UUID.randomUUID();
+
+        BidEvidence bidEvidenceOne = BidEvidence.builder()
+                .requestId(requestId)
+                .lineItemId(lineItemId)
+                .screenId(screenId)
+                .minPrice(BigDecimal.valueOf(3))
+                .actualPrice(BigDecimal.valueOf(10))
+                .maxPrice(BigDecimal.valueOf(10))
+                .currencyCode("USD")
+                .directiveId(Optional.of(directiveId))
+                .timestamp(Instant.now())
+                .sspId(sspId)
+                .build();
+
+        Guideline existingGuideline = Guideline.builder()
+                .status(GuidelineStatus.ACTIVE)
+                .guidelineType(GuidelineType.MAXIMISE_WINS)
+                .directive(Directive.builder()
+                        .type(DirectiveType.EXPLORATION)
+                        .lineItemId(lineItemId)
+                        .screenId(screenId)
+                        .sspId(sspId)
+                        .directiveId(directiveId)
+                        .requestId(requestId)
+                        .timestamp(Instant.now())
+                        .priceChange(BigDecimal.valueOf(0.1))
+                        .build())
+                .build();
+
+        CacheData cacheData = CacheData.builder()
+                .bidEvidence(bidEvidenceOne)
+                .build();
+
+        LossNoticeMessage lossNoticeMessage = LossNoticeMessage.builder()
+                .type("loss_notice")
+                .time(Instant.now())
+                .meta(LossNoticeMessage.Meta.builder()
+                        .requestId(requestId)
+                        .build())
+                .build();
+
+        when(cacheReader.read(requestId)).thenReturn(Optional.of(cacheData));
+        when(guidelineReader.read(eq(lineItemId), eq(screenId), eq(sspId))).thenReturn(Optional.of(existingGuideline));
 
         // when
         pricerService.onLossNoticeMessage(lossNoticeMessage);
@@ -175,21 +274,37 @@ class PricerServiceMaxWinsTest {
     }
 
     @Test
-    public void cancels_only_latest_exploration_directive_when_price_max_reached() throws Exception {
+    public void should_cancel_only_latest_exploration_directive_and_keeps_guideline_active_when_price_max_reached() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
         CacheReader cacheReader = mock(CacheReader.class);
         CacheWriter cacheWriter = mock(CacheWriter.class);
         GuidelineReader guidelineReader = mock(GuidelineReader.class);
-        UUID directiveId = UUID.randomUUID();
+        UUID directiveIdOne = UUID.randomUUID();
+        UUID directiveIdTwo = UUID.randomUUID();
+        UUID directiveIdThree = UUID.randomUUID();
 
-        PricerService pricerService = new PricerService(
-                AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
+
+        PricerService pricerService = PricerService.builder()
+                .objectMapper(objectMapper)
+                .cacheReader(cacheReader)
+                .cacheWriter(cacheWriter)
+                .uuidSupplier(uuidSupplier)
+                .nowSupplier(nowSupplier)
+                .maxWinsPercentage(maxWinsPercentage)
+                .minCostsPercentage(minCostsPercentage)
+                .priceChangeStep(priceChangeStep)
+                .moneyExchanger(moneyExchanger)
+                .directivePublisher(directivePublisher)
+                .guidelineReader(guidelineReader)
+                .guidelineWriter(guidelineWriter)
+                .build();
 
         String requestId = "one";
         String lineItemId = RandomStringUtils.randomAlphanumeric(10);
         String screenId = RandomStringUtils.randomNumeric(10);
+        String sspId = RandomStringUtils.randomNumeric(10);
 
         Guideline existingGuideline = Guideline.builder()
                 .status(GuidelineStatus.ACTIVE)
@@ -198,17 +313,29 @@ class PricerServiceMaxWinsTest {
                         .type(DirectiveType.EXPLORATION)
                         .lineItemId(lineItemId)
                         .screenId(screenId)
+                        .sspId(sspId)
+                        .directiveId(directiveIdOne)
+                        .requestId(requestId)
+                        .timestamp(Instant.now())
                         .build())
                 .directive(Directive.builder()
                         .type(DirectiveType.EXPLOITATION)
                         .lineItemId(lineItemId)
                         .screenId(screenId)
+                        .screenId(sspId)
+                        .directiveId(directiveIdTwo)
+                        .requestId(requestId)
+                        .timestamp(Instant.now())
+                        .sspId(sspId)
                         .build())
                 .directive(Directive.builder()
                         .type(DirectiveType.EXPLORATION)
-                        .directiveId(directiveId)
+                        .directiveId(directiveIdThree)
                         .lineItemId(lineItemId)
                         .screenId(screenId)
+                        .sspId(sspId)
+                        .requestId(requestId)
+                        .timestamp(Instant.now())
                         .build())
                 .build();
 
@@ -220,7 +347,9 @@ class PricerServiceMaxWinsTest {
                 .actualPrice(BigDecimal.valueOf(10))
                 .maxPrice(BigDecimal.valueOf(10))
                 .currencyCode("USD")
-                .directiveId(Optional.of(directiveId))
+                .directiveId(Optional.of(directiveIdThree))
+                .timestamp(Instant.now())
+                .sspId(sspId)
                 .build();
 
         LossNoticeMessage lossNoticeMessage = LossNoticeMessage.builder()
@@ -232,11 +361,11 @@ class PricerServiceMaxWinsTest {
                 .build();
 
         CacheData cacheData = CacheData.builder()
-                .guideline(existingGuideline)
                 .bidEvidence(bidEvidenceOne)
                 .build();
 
         when(cacheReader.read(requestId)).thenReturn(Optional.of(cacheData));
+        when(guidelineReader.read(eq(lineItemId), eq(screenId), eq(sspId))).thenReturn(Optional.of(existingGuideline));
 
         // when
         pricerService.onLossNoticeMessage(lossNoticeMessage);
@@ -259,7 +388,7 @@ class PricerServiceMaxWinsTest {
     }
 
     @Test
-    public void issues_exploitation_directive_when_win_received_and_exploration_directive_exists() throws Exception {
+    public void should_issue_exploitation_directive_when_win_received_and_exploration_directive_exists() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
         DirectivePublisher directivePublisher = mock(DirectivePublisher.class);
@@ -267,13 +396,25 @@ class PricerServiceMaxWinsTest {
         CacheWriter cacheWriter = mock(CacheWriter.class);
         GuidelineReader guidelineReader = mock(GuidelineReader.class);
 
-
-        PricerService pricerService = new PricerService(
-                AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
+        PricerService pricerService = PricerService.builder()
+                .objectMapper(objectMapper)
+                .cacheReader(cacheReader)
+                .cacheWriter(cacheWriter)
+                .uuidSupplier(uuidSupplier)
+                .nowSupplier(nowSupplier)
+                .maxWinsPercentage(maxWinsPercentage)
+                .minCostsPercentage(minCostsPercentage)
+                .priceChangeStep(priceChangeStep)
+                .moneyExchanger(moneyExchanger)
+                .directivePublisher(directivePublisher)
+                .guidelineReader(guidelineReader)
+                .guidelineWriter(guidelineWriter)
+                .build();
 
         String requestId = "one";
         String lineItemId = RandomStringUtils.randomAlphanumeric(10);
         String screenId = RandomStringUtils.randomNumeric(10);
+        String sspId = RandomStringUtils.randomNumeric(10);
         UUID directiveId = UUID.randomUUID();
 
         Directive exploration = Directive.builder()
@@ -281,6 +422,10 @@ class PricerServiceMaxWinsTest {
                 .type(EXPLORATION)
                 .lineItemId(lineItemId)
                 .screenId(screenId)
+                .sspId(sspId)
+                .directiveId(directiveId)
+                .requestId(requestId)
+                .timestamp(Instant.now())
                 .build();
 
         Guideline existingGuideline = Guideline.builder()
@@ -292,8 +437,14 @@ class PricerServiceMaxWinsTest {
         BidEvidence bidEvidence = BidEvidence.builder()
                 .screenId(screenId)
                 .requestId(requestId)
+                .timestamp(Instant.now())
                 .lineItemId(lineItemId)
                 .directiveId(Optional.of(directiveId))
+                .minPrice(BigDecimal.valueOf(3))
+                .maxPrice(BigDecimal.valueOf(10))
+                .actualPrice(BigDecimal.valueOf(5))
+                .currencyCode("JOD")
+                .sspId(sspId)
                 .build();
 
         WinNoticeMessage winNoticeMessage = WinNoticeMessage.builder()
@@ -307,10 +458,11 @@ class PricerServiceMaxWinsTest {
 
         CacheData cacheData = CacheData.builder()
                 .bidEvidence(bidEvidence)
-                .guideline(existingGuideline)
                 .build();
 
         when(cacheReader.read(requestId)).thenReturn(Optional.of(cacheData));
+        when(moneyExchanger.exchange(any(), any())).thenReturn(Money.of(0.07, "JOD"));
+        when(guidelineReader.read(eq(lineItemId), eq(screenId), eq(sspId))).thenReturn(Optional.of(existingGuideline));
 
         // when
         pricerService.onWinNoticeMessage(winNoticeMessage);
@@ -342,11 +494,12 @@ class PricerServiceMaxWinsTest {
 
 
         PricerService pricerService = new PricerService(
-                AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
+                AppConfigLocal.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader, Instant::now);
 
         String requestId = "one";
         String lineItemId = RandomStringUtils.randomAlphanumeric(10);
         String screenId = RandomStringUtils.randomNumeric(10);
+        String sspId = RandomStringUtils.randomNumeric(10);
         UUID directiveId = UUID.randomUUID();
 
         Guideline existingGuideline = Guideline.builder()
@@ -356,13 +509,19 @@ class PricerServiceMaxWinsTest {
                         .directiveId(directiveId)
                         .type(EXPLORATION)
                         .screenId(screenId)
+                        .sspId(sspId)
                         .lineItemId(lineItemId)
+                        .requestId(requestId)
+                        .timestamp(Instant.now())
                         .build())
                 .directive(Directive.builder()
                         .directiveId(UUID.randomUUID())
                         .type(EXPLOITATION)
                         .screenId(screenId)
+                        .sspId(sspId)
                         .lineItemId(lineItemId)
+                        .requestId(requestId)
+                        .timestamp(Instant.now())
                         .build())
                 .build();
 
@@ -380,10 +539,11 @@ class PricerServiceMaxWinsTest {
                         .lineItemPrice(3.0)
                         .lineItemCurrency("USD")
                         .directiveId(directiveId)
+                        .ssp(sspId)
                         .build())
                 .build();
 
-        when(guidelineReader.read(lineItemId, screenId)).thenReturn(Optional.of(existingGuideline));
+        when(guidelineReader.read(lineItemId, screenId, sspId)).thenReturn(Optional.of(existingGuideline));
 
         // when
         pricerService.onBidResponseMessage(bidResponseMessage);
@@ -418,11 +578,12 @@ class PricerServiceMaxWinsTest {
 
 
         PricerService pricerService = new PricerService(
-                AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
+                AppConfigLocal.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader, Instant::now);
 
         String requestTwo = "two";
         String lineItemId = RandomStringUtils.randomAlphanumeric(10);
         String screenId = RandomStringUtils.randomNumeric(10);
+        String sspId = RandomStringUtils.randomNumeric(10);
 
         BidResponseMessage bidResponseMessage = BidResponseMessage.builder()
                 .type("bid_response")
@@ -438,6 +599,7 @@ class PricerServiceMaxWinsTest {
                         .lineItemPrice(3.0)
                         .lineItemCurrency("USD")
                         .directiveId(null)
+                        .ssp(sspId)
                         .build())
                 .build();
 
@@ -458,22 +620,6 @@ class PricerServiceMaxWinsTest {
     }
 
     @Test
-    public void test_price_increase_step() throws Exception {
-
-        Money oneJOD = Money.of(1, "JOD");
-        Money step = Money.of(0.1, "USD");
-        MoneyExchanger exchanger = mock(MoneyExchanger.class);
-
-        when(exchanger.exchange(eq(step), eq(Monetary.getCurrency("JOD"))))
-                .thenReturn(Money.of(0.07, "JOD"));
-
-        Money result = getPriceIncreaseStep(oneJOD, step, exchanger);
-
-        assertEquals(Money.of(0.07, "JOD"), result);
-
-    }
-
-    @Test
     public void test_min_max_price_zero_check() throws Exception {
 
         GuidelineWriter guidelineWriter = mock(GuidelineWriter.class);
@@ -483,13 +629,29 @@ class PricerServiceMaxWinsTest {
         GuidelineReader guidelineReader = mock(GuidelineReader.class);
 
         PricerService pricerService = new PricerService(
-                AppConfig.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader);
+                AppConfigLocal.objectMapper(), cacheReader, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisher, cacheWriter, guidelineReader, Instant::now);
 
         BidResponseMessage bidResponseMessage = objectMapper.readValue(stagingBidEvidenceOne(), BidResponseMessage.class);
 
         pricerService.onBidResponseMessage(bidResponseMessage);
 
         verifyNoInteractions(guidelineReader, cacheWriter);
+
+    }
+
+    @Test
+    public void test_get_price_increase_step() throws Exception {
+
+        Money oneJOD = Money.of(1, "JOD");
+        Money step = Money.of(0.1, "USD");
+        MoneyExchanger exchanger = mock(MoneyExchanger.class);
+
+        when(exchanger.exchange(eq(step), eq(Monetary.getCurrency("JOD"))))
+                .thenReturn(Money.of(0.07, "JOD"));
+
+        Money result = getPriceChangeStep(oneJOD, step, exchanger);
+
+        assertEquals(Money.of(0.07, "JOD"), result);
 
     }
 

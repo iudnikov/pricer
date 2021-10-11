@@ -36,7 +36,6 @@ public class GuidelineController {
 
     @GetMapping(value = "")
     public ResponseEntity<String> getGuidelines() {
-        log.debug("getting guidelines...");
         try {
             return delegate.getGuidelines();
         } catch (Exception e) {

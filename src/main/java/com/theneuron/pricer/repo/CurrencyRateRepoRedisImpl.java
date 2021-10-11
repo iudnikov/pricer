@@ -1,6 +1,5 @@
 package com.theneuron.pricer.repo;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.theneuron.pricer.model.messages.CurrencyRatesMessage;
 import org.joda.time.DateTime;
 import org.springframework.stereotype.Component;

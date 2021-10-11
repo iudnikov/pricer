@@ -55,13 +55,13 @@ public class GuidelineRepoRedisImpl implements GuidelineReader, GuidelineWriter 
     }
 
     @Override
-    public Optional<Guideline> read(String lineItemId, String screenId) {
-        String key = getKey(lineItemId, screenId);
+    public Optional<Guideline> read(String lineItemId, String screenId, String sspId) {
+        String key = getKey(lineItemId, screenId, sspId);
         return Optional.ofNullable(jedis.get().get(key)).map(data -> {
             try {
                 return objectMapper.readValue(data, Guideline.class);
             } catch (JsonProcessingException e) {
-                log.error("can't read Guideline from: {}", data);
+                log.error("can't read Guideline from: {}", data, e);
                 return null;
             }
         });
@@ -69,16 +69,25 @@ public class GuidelineRepoRedisImpl implements GuidelineReader, GuidelineWriter 
 
     @Override
     public void write(Guideline guideline) throws Exception {
+        log.debug("guideline would be written: {}", guideline);
         if (guideline.directives.isEmpty()) {
             throw new Exception("can't write guideline without directives");
         }
+
+        List<Directive> invalidDirectives = guideline.directives.stream().filter(directive -> !directive.isValid()).collect(Collectors.toList());
+
+        if (!invalidDirectives.isEmpty()) {
+            log.error("invalid directives: {}", invalidDirectives);
+            throw new Exception("can't write invalid directives");
+        }
+
         Directive directive = guideline.directives.get(0);
-        String key = getKey(directive.lineItemId, directive.screenId);
+        String key = getKey(directive.lineItemId, directive.screenId, directive.sspId);
         String value = objectMapper.writeValueAsString(guideline);
         jedis.get().set(key, value);
     }
 
-    private static String getKey(String lineItemId, String screenId) {
-        return String.join("#", Guideline.class.getName(), lineItemId, screenId);
+    private static String getKey(String lineItemId, String screenId, String sspId) {
+        return String.join("#", Guideline.class.getName(), lineItemId, screenId, sspId);
     }
 }

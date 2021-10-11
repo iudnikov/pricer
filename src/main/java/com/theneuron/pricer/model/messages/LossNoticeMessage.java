@@ -63,4 +63,8 @@ public class LossNoticeMessage {
 
     }
 
+    public static LossNoticeMessage.LossNoticeMessageBuilder of(Instant at, LossNoticeMessage.Meta meta) {
+        return builder().type("loss_notice").time(at).meta(meta);
+    }
+
 }

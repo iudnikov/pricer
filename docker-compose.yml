@@ -2,17 +2,6 @@ version: '2.1'
 
 services:
 
-  postgres:
-    image: postgres:9.6-alpine
-    ports:
-      - 5432:5432
-    environment:
-      POSTGRES_DB: redshift
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-    volumes:
-      - './postgresql:/docker-entrypoint-initdb.d'
-
   redis:
     image: redis
     ports:
