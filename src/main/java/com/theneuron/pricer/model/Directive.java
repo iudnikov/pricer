@@ -53,4 +53,12 @@ public class Directive {
     public boolean isCancellation() {
         return type.equals(DirectiveType.EXPLORATION_CANCEL) || type.equals(DirectiveType.EXPLOITATION_CANCEL);
     }
+
+    public boolean isLor() {
+        return type.equals(DirectiveType.EXPLORATION);
+    }
+
+    public boolean isLoi() {
+        return type.equals(DirectiveType.EXPLOITATION);
+    }
 }
