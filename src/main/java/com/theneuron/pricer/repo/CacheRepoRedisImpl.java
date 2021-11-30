@@ -6,6 +6,7 @@ import com.theneuron.pricer.model.CacheData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.params.SetParams;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -30,7 +31,8 @@ public class CacheRepoRedisImpl implements CacheWriter, CacheReader {
     public void write(CacheData cacheData) throws Exception {
         String key = getKey(Objects.requireNonNull(cacheData.getRequestId()));
         String value = objectMapper.writeValueAsString(cacheData);
-        jedisSupplier.get().set(key, value);
+        int secondsToExpire = 24 * 60 * 60;
+        jedisSupplier.get().set(key, value, new SetParams().ex(secondsToExpire));
     }
 
     private String getKey(String s) {
