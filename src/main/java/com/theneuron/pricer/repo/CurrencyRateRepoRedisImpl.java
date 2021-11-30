@@ -46,7 +46,8 @@ public class CurrencyRateRepoRedisImpl implements CurrencyRateReader, CurrencyRa
     private void write(DateTime dateTime, String pair, BigDecimal rate) {
         String key = getKey(dateTime, pair);
         // currency rates are expected to be received every day, so 2 days ttl should be enough
-        jedis.get().set(key, rate.toString(), new SetParams().ex(172800));
+        int secondsToExpire = 2 * 24 * 60 * 60;
+        jedis.get().set(key, rate.toString(), new SetParams().ex(secondsToExpire));
     }
 
     private String getKey(DateTime dateTime, String pair) {
