@@ -13,6 +13,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import com.theneuron.pricer.jedis.JedisStatefulClient;
 import com.theneuron.pricer.repo.CacheRepoRedisImpl;
 import com.theneuron.pricer.repo.CurrencyRateReader;
 import com.theneuron.pricer.repo.GuidelineReader;
@@ -78,6 +79,18 @@ public class AppConfig {
     ) {
         Money priceIncreaseStep = Money.of(priceIncreaseStepAmount, priceIncreaseStepCurrency);
         return new PricerService(objectMapper, cacheRepoRedis, UUID::randomUUID, maxWinsPercentage, minCostsPercentage, guidelineWriter, priceIncreaseStep, moneyExchanger, directivePublisherSNS, cacheRepoRedis, guidelineReader, Instant::now);
+    }
+
+    @Bean
+    public JedisStatefulClient jedisStatefulClient(
+            @Value("${spring.redis.host}") String host,
+            @Value("${spring.redis.port}") Integer port,
+            @Value("${spring.redis.database}") Integer db
+    ) {
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxTotal(32);
+        JedisPool pool = new JedisPool(poolConfig, host, port);
+        return new JedisStatefulClient(pool, db);
     }
 
     @Bean

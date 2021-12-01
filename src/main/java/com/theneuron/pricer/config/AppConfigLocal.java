@@ -14,6 +14,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import com.theneuron.pricer.jedis.JedisStatefulClient;
 import com.theneuron.pricer.mock.UUIDSupplierQueued;
 import com.theneuron.pricer.repo.*;
 import com.theneuron.pricer.services.DirectivePublisherSNSImpl;
@@ -53,6 +54,18 @@ public class AppConfigLocal {
                 .registerModule(new Jdk8Module())
                 .registerModule(new JodaModule())
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
+
+    @Bean
+    public JedisStatefulClient jedisStatefulClient(
+            @Value("${spring.redis.host}") String host,
+            @Value("${spring.redis.port}") Integer port,
+            @Value("${spring.redis.database}") Integer db
+    ) {
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxTotal(32);
+        JedisPool pool = new JedisPool(poolConfig, host, port);
+        return new JedisStatefulClient(pool, db);
     }
 
     @Bean
