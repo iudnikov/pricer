@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -61,7 +62,9 @@ public class AppConfigLocal {
             @Value("${spring.redis.database}") Integer db
     ) {
         return () -> {
-            JedisPool pool = new JedisPool(host, port);
+            JedisPoolConfig poolConfig = new JedisPoolConfig();
+            poolConfig.setMaxTotal(32);
+            JedisPool pool = new JedisPool(poolConfig, host, port);
             Jedis jedis = pool.getResource();
             jedis.select(db);
             return jedis;
