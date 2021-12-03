@@ -98,7 +98,7 @@ public class PricerServiceIntegrationTest {
                         .screenId(screenOne)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdOne)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 
@@ -133,7 +133,7 @@ public class PricerServiceIntegrationTest {
                         .ssp(sspId)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdTwo)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 
@@ -168,7 +168,7 @@ public class PricerServiceIntegrationTest {
                         .ssp(sspId)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdThree)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 
@@ -192,7 +192,7 @@ public class PricerServiceIntegrationTest {
                         .screenId(screenOne)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdTwo)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 
@@ -246,7 +246,7 @@ public class PricerServiceIntegrationTest {
                         .screenId(screenOne)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdOne)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 
@@ -281,7 +281,7 @@ public class PricerServiceIntegrationTest {
                         .screenId(screenOne)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdTwo)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 
@@ -581,7 +581,7 @@ public class PricerServiceIntegrationTest {
                         .screenId(screenOne)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdOne)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 
@@ -614,7 +614,7 @@ public class PricerServiceIntegrationTest {
                         .screenId(screenOne)
                         .lineItemId(lineItemOne)
                         .requestId(requestIdTwo)
-                        .lossReason("just because you are looser")
+                        .lossReason("102")
                         .build())
                 .build());
 

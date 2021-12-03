@@ -2,6 +2,7 @@ package com.theneuron.pricer.repo;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.theneuron.pricer.jedis.JedisStatefulClient;
 import com.theneuron.pricer.model.CacheData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
@@ -16,11 +17,11 @@ import java.util.function.Supplier;
 @Repository
 public class CacheRepoRedisImpl implements CacheWriter, CacheReader {
 
-    private final Supplier<Jedis> jedisSupplier;
+    private final JedisStatefulClient jedisSupplier;
     private final ObjectMapper objectMapper;
 
     public CacheRepoRedisImpl(
-            Supplier<Jedis> jedisSupplier,
+            JedisStatefulClient jedisSupplier,
             ObjectMapper objectMapper
     ) {
         this.jedisSupplier = jedisSupplier;

@@ -3,6 +3,7 @@ package com.theneuron.pricer.repo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.theneuron.pricer.jedis.JedisStatefulClient;
 import com.theneuron.pricer.model.Directive;
 import com.theneuron.pricer.model.Guideline;
 import lombok.extern.slf4j.Slf4j;
@@ -23,11 +24,11 @@ import java.util.stream.Collectors;
 public class GuidelineRepoRedisImpl implements GuidelineReader, GuidelineWriter {
 
     private final ObjectMapper objectMapper;
-    private final Supplier<Jedis> jedis;
+    private final JedisStatefulClient jedis;
 
     public GuidelineRepoRedisImpl(
             ObjectMapper objectMapper,
-            Supplier<Jedis> jedis
+            JedisStatefulClient jedis
     ) {
         this.objectMapper = objectMapper;
         this.jedis = jedis;

@@ -16,7 +16,7 @@ public class JedisStatefulClient {
         this.databaseNumber = databaseNumber;
     }
 
-    public final Jedis getJedis() {
+    public final Jedis get() {
         try {
             usableJedis.get("test-key");
         } catch (Exception e) {

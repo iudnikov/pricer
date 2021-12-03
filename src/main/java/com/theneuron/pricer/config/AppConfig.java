@@ -3,8 +3,6 @@ package com.theneuron.pricer.config;
 import com.amazon.sqs.javamessaging.ProviderConfiguration;
 import com.amazon.sqs.javamessaging.SQSConnection;
 import com.amazon.sqs.javamessaging.SQSConnectionFactory;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -91,22 +89,6 @@ public class AppConfig {
         poolConfig.setMaxTotal(32);
         JedisPool pool = new JedisPool(poolConfig, host, port);
         return new JedisStatefulClient(pool, db);
-    }
-
-    @Bean
-    public Supplier<Jedis> jedis(
-            @Value("${spring.redis.host}") String host,
-            @Value("${spring.redis.port}") Integer port,
-            @Value("${spring.redis.database}") Integer db
-    ) {
-        return () -> {
-            JedisPoolConfig poolConfig = new JedisPoolConfig();
-            poolConfig.setMaxTotal(32);
-            JedisPool pool = new JedisPool(poolConfig, host, port);
-            Jedis jedis = pool.getResource();
-            jedis.select(db);
-            return jedis;
-        };
     }
 
     @Bean
