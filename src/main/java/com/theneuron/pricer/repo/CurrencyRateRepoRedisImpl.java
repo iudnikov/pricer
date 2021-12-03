@@ -1,5 +1,6 @@
 package com.theneuron.pricer.repo;
 
+import com.theneuron.pricer.jedis.JedisStatefulClient;
 import com.theneuron.pricer.model.messages.CurrencyRatesMessage;
 import org.joda.time.DateTime;
 import org.springframework.stereotype.Component;
@@ -14,9 +15,9 @@ import java.util.function.Supplier;
 @Component
 public class CurrencyRateRepoRedisImpl implements CurrencyRateReader, CurrencyRateWriter {
 
-    private final Supplier<Jedis> jedis;
+    private final JedisStatefulClient jedis;
 
-    public CurrencyRateRepoRedisImpl(Supplier<Jedis> jedis) {
+    public CurrencyRateRepoRedisImpl(JedisStatefulClient jedis) {
         this.jedis = jedis;
     }
 

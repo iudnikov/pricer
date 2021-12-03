@@ -69,22 +69,6 @@ public class AppConfigLocal {
     }
 
     @Bean
-    public Supplier<Jedis> jedis(
-            @Value("${spring.redis.host}") String host,
-            @Value("${spring.redis.port}") Integer port,
-            @Value("${spring.redis.database}") Integer db
-    ) {
-        return () -> {
-            JedisPoolConfig poolConfig = new JedisPoolConfig();
-            poolConfig.setMaxTotal(32);
-            JedisPool pool = new JedisPool(poolConfig, host, port);
-            Jedis jedis = pool.getResource();
-            jedis.select(db);
-            return jedis;
-        };
-    }
-
-    @Bean
     public SnsClient amazonSNSClientLocal(
             @Value("${aws.access-key}") String accessKey,
             @Value("${aws.secret-key}") String secretKey,

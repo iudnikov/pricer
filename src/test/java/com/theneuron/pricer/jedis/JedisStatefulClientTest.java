@@ -24,7 +24,7 @@ public class JedisStatefulClientTest {
 
     @Test
     public void getJedis() {
-        jedisStatefulClient.getJedis().set("foo", "bar");
-        assertEquals("bar", jedisStatefulClient.getJedis().get("foo"));
+        jedisStatefulClient.get().set("foo", "bar");
+        assertEquals("bar", jedisStatefulClient.get().get("foo"));
     }
 }
