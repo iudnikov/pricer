@@ -88,7 +88,8 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
 
         log.debug("handling bid response: {}", objectMapper.writeValueAsString(bidResponse));
 
-        if (bidResponse.meta.getSsp().trim().equalsIgnoreCase("FSSP")) {
+        if (bidResponse.meta.getSsp().trim().equalsIgnoreCase("FSSP") ||
+                bidResponse.meta.getSsp().trim().equalsIgnoreCase("VISTAR")) {
             //log.debug("dynamic bidding for FSSP is disabled");
             return;
         }
