@@ -18,10 +18,7 @@ import org.javamoney.moneta.Money;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -68,11 +65,16 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
                         .map(list -> list.get(i))
                         .orElseThrow(() -> new Exception("can't define minimum price")));
 
+        final String sspId = bidResponseMessage.meta.getSsp();
+        final BigDecimal lineItemPrice = BigDecimal.valueOf(bidResponseMessage.meta.getLineItemPrices().get(i));
+        final BigDecimal impMultiply = BigDecimal.valueOf(bidResponseMessage.meta.getImpMultiplies().get(i));
+        final BigDecimal maxPrice = getMaxPrice(sspId, lineItemPrice, impMultiply);
+
         return BidEvidence.builder()
                 .requestId(bidResponseMessage.meta.getRequestId())
                 .minPrice(BigDecimal.valueOf(minPrice))
                 .actualPrice(BigDecimal.valueOf(bidResponseMessage.meta.getPrices().get(i)))
-                .maxPrice(BigDecimal.valueOf(bidResponseMessage.meta.getLineItemPrices().get(i)))
+                .maxPrice(maxPrice)
                 .lineItemId(bidResponseMessage.meta.getLineItemIds().get(i))
                 .screenId(bidResponseMessage.meta.getScreenId())
                 .currencyCode(bidResponseMessage.meta.getLineItemCurrencies().get(i))
@@ -80,8 +82,19 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
                         .filter(list -> !list.isEmpty())
                         .map(list -> list.get(i)))
                 .timestamp(bidResponseMessage.time)
-                .sspId(bidResponseMessage.meta.getSsp())
+                .sspId(sspId)
                 .build();
+    }
+
+    static BigDecimal getMaxPrice(String sspId, BigDecimal lineItemPrice, BigDecimal impMultiply) {
+        sspId = sspId.toUpperCase();
+        switch (sspId) {
+            case "VISTAR":
+            case "VIOOH":
+                return lineItemPrice.multiply(impMultiply);
+            default:
+                return lineItemPrice;
+        }
     }
 
     public void onBidResponseMessage(BidResponseMessage bidResponse) throws Exception {
@@ -107,6 +120,9 @@ public class PricerService implements BidResponseHandler, WinNoticeHandler, Loss
         if (bidEvidence.actualPrice.compareTo(bidEvidence.maxPrice) > 0 && bidEvidence.directiveId.isPresent()) {
             log.debug("received bid evidence with actual price greater or equal than maxPrice and defined directive, guideline would be cancelled");
             cancelGuidelineAndAllDirectives(bidEvidence, guidelineReader.read(bidEvidence.lineItemId, bidEvidence.screenId, bidEvidence.sspId));
+            return;
+        } else if (bidEvidence.actualPrice.compareTo(bidEvidence.maxPrice) > 0) {
+            log.warn("actual price {} is grater than max {}, case would be ignored", bidEvidence.actualPrice, bidEvidence.maxPrice);
             return;
         }
 

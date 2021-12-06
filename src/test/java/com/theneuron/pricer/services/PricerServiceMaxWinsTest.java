@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import static com.theneuron.pricer.model.DirectiveType.*;
+import static com.theneuron.pricer.services.PricerService.getMaxPrice;
 import static com.theneuron.pricer.services.PricerService.getPriceChangeStep;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,6 +39,13 @@ class PricerServiceMaxWinsTest {
     final Money priceChangeStep = Money.of(0.1, "USD");
     final Supplier<UUID> uuidSupplier = UUID::randomUUID;
     final Supplier<Instant> nowSupplier = Instant::now;
+
+    @Test
+    public void should_multiply_viooh_and_vistar_price() {
+        assertEquals(BigDecimal.valueOf(100), getMaxPrice("vistar", BigDecimal.TEN, BigDecimal.TEN));
+        assertEquals(BigDecimal.valueOf(100), getMaxPrice("viooh", BigDecimal.TEN, BigDecimal.TEN));
+        assertEquals(BigDecimal.TEN, getMaxPrice("other", BigDecimal.TEN, BigDecimal.TEN));
+    }
 
     @Test
     public void should_create_new_guideline_and_publishes_exploration_directive() throws Exception {
